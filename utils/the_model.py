@@ -18,9 +18,9 @@ sns.set_theme(style="ticks", font_scale=1.25)
 random_state = 123
 class_dict = {'F': 1, 'M': 0}
 
-EF_data = pd.read_csv('C:/Anna/!studium/DP/R/ef_r_data.csv', header=0)
-data = EF_data.rename(columns={'collection_id': 'collection'})
-dataset = data.iloc[:, np.r_[8:36]]
+# EF_data = pd.read_csv('C:/Anna/!studium/DP/R/ef_r_data.csv', header=0)
+# data = EF_data.rename(columns={'collection_id': 'collection'})
+# dataset = data.iloc[:, np.r_[8:36]]
 
 # read all data
 folder_main = '../data/segmented_curves/final'
@@ -57,7 +57,7 @@ for folder in sup_folders:
 data = pd.concat(data)
 
 # read metadata
-meta_data = pd.read_csv("C:\Anna\!studium\DP\R\data\collections_all.csv", sep=";")
+meta_data = pd.read_csv("../data/collections_all.csv", sep=";")
 new_data = data.merge(meta_data, on=['collection', 'id'])
 
 dataset = new_data.iloc[:, np.r_[0:28]]

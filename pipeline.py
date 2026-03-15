@@ -1,6 +1,5 @@
 import datetime
 import os
-
 import cv2
 import joblib
 import numpy as np
@@ -11,7 +10,7 @@ from utils.curve_fitting_utils import sample_equidist
 from utils.ef_functions import ef_coefs
 from utils.img_preproc_utils import ImgProcessor, ContourGSN, transform_gsn
 
-folder = '../data/landmark_placement/img'
+folder = 'data/landmark_placement/img'
 
 imgs = os.listdir(folder)
 data_coefs = []
@@ -73,8 +72,8 @@ for file_name in imgs:
 
     coefs = ef_coefs(outline, n_harmonics=7)
     # read the scaler and the model for a prediction
-    scaler = joblib.load('scaler.save')
-    classifier = joblib.load('the_model.save')
+    scaler = joblib.load('utils/scaler.save')
+    classifier = joblib.load('utils/the_model.save')
 
     # predict with new data
     X = scaler.transform(coefs.reshape(1, -1))
