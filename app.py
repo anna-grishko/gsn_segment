@@ -1,7 +1,8 @@
 import os
+import csv
 import tkinter as tk
 from tkinter import filedialog, messagebox
-
+from datetime import datetime
 import cv2
 import joblib
 import numpy as np
@@ -114,90 +115,109 @@ def process_image_and_predict(file_path, scaler, classifier):
 class PredictorApp:
     def __init__(self, master):
         self.master = master
-        master.title("Biological sex prediction based on the GSN shape")
-        master.geometry("500x300")
+        master.title("Sex prediction based on GSN shape")
+        master.geometry("500x450")  # Slightly taller to fit result labels
+        self.folder_path = ""
 
-        self.file_path = ""
-
-        # --- GUI Elements ---
-
-        # 1. File Path Label
-        self.path_label = tk.Label(master, text="No file selected", wraplength=450)
+        # --- Folder Selection ---
+        self.path_label = tk.Label(master, text="No folder selected", wraplength=450, fg="gray")
         self.path_label.pack(pady=10)
 
-        # 2. Browse Button
-        self.browse_button = tk.Button(master, text="Select Image File", command=self.browse_file)
+        self.browse_button = tk.Button(master, text="Select Input Folder", command=self.browse_folder)
         self.browse_button.pack(pady=5)
 
-        # 3. Process Button
-        self.process_button = tk.Button(master, text="Run Prediction", command=self.run_prediction,
-                                        state=tk.DISABLED, bg='green', fg='white')
+        self.process_button = tk.Button(master, text="Process All & Export CSV", command=self.run_batch_prediction,
+                                        state=tk.DISABLED, bg='#28a745', fg='white', font=('Arial', 10, 'bold'))
         self.process_button.pack(pady=15)
 
-        # 4. Results Section
-        self.result_title = tk.Label(master, text="--- Prediction Results ---", font=('Arial', 10, 'bold'))
-        self.result_title.pack()
+        # --- Status and Progress ---
+        self.status_label = tk.Label(master, text="Status: Ready", font=('Arial', 10, 'italic'))
+        self.status_label.pack(pady=5)
 
-        self.pred_label = tk.Label(master, text="Predicted Sex: N/A", font=('Arial', 12))
-        self.pred_label.pack()
+        # --- Dynamic Results Display Section ---
+        tk.Label(master, text="--- Current Image Results ---", font=('Arial', 10, 'bold')).pack(pady=(10, 0))
 
-        self.prob_m_label = tk.Label(master, text="Probability Male: N/A")
-        self.prob_m_label.pack()
+        self.res_file_label = tk.Label(master, text="File: -", fg="blue")
+        self.res_file_label.pack()
 
-        self.prob_f_label = tk.Label(master, text="Probability Female: N/A")
-        self.prob_f_label.pack()
+        self.res_pred_label = tk.Label(master, text="Predicted Sex: -", font=('Arial', 12, 'bold'))
+        self.res_pred_label.pack()
 
-    def browse_file(self):
-        """Opens a file dialog to select an image."""
-        self.file_path = filedialog.askopenfilename(
-            title="Select an image file",
-            filetypes=(("Image files", "*.png;*.jpg;*.jpeg"), ("All files", "*.*"))
-        )
-        if self.file_path:
-            self.path_label.config(text=f"Selected File: {os.path.basename(self.file_path)}")
+        self.res_prob_m_label = tk.Label(master, text="Prob Male: -")
+        self.res_prob_m_label.pack()
+
+        self.res_prob_f_label = tk.Label(master, text="Prob Female: -")
+        self.res_prob_f_label.pack()
+
+    def browse_folder(self):
+        self.folder_path = filedialog.askdirectory()
+        if self.folder_path:
+            self.path_label.config(text=f"Folder: {self.folder_path}", fg="black")
             self.process_button.config(state=tk.NORMAL)
-            # Clear previous results
-            self.pred_label.config(text="Predicted Sex: Waiting...")
-            self.prob_m_label.config(text="Probability Male: N/A")
-            self.prob_f_label.config(text="Probability Female: N/A")
-        else:
-            self.path_label.config(text="No file selected")
-            self.process_button.config(state=tk.DISABLED)
 
-    def run_prediction(self):
-        """Triggers the image processing and displays the results."""
-        if not self.file_path:
-            messagebox.showerror("Error", "Please select an image file first.")
+    def run_batch_prediction(self):
+        valid_extensions = ('.png', '.jpg', '.jpeg', '.tif', '.bmp')
+        files = [f for f in os.listdir(self.folder_path) if f.lower().endswith(valid_extensions)]
+
+        if not files:
+            messagebox.showwarning("No Images", "No valid images found in the selected folder.")
             return
 
-        # Disable button while processing to prevent multiple clicks
         self.process_button.config(state=tk.DISABLED, text="Processing...")
+        results_data = []
 
         try:
             scaler = joblib.load(SCALER_PATH)
             classifier = joblib.load(CLASSIFIER_PATH)
-            # Run the core logic
-            y_pred, y_prob_M, y_prob_F = process_image_and_predict(self.file_path, scaler, classifier)
-            # Update GUI labels with results
-            self.pred_label.config(text=f"Predicted Sex: **{y_pred}**",
-                                   font=('Arial', 14, 'bold'), fg='blue')
-            self.prob_m_label.config(text=f"Probability Male: {y_prob_M:.4f}")
-            self.prob_f_label.config(text=f"Probability Female: {y_prob_F:.4f}")
 
-            print("Prediction complete.")
+            for i, file_name in enumerate(files):
+                full_path = os.path.join(self.folder_path, file_name)
+
+                # Update Status
+                self.status_label.config(text=f"Processing {i + 1} of {len(files)}")
+                self.master.update_idletasks()
+
+                # Get results
+                pred, prob_m, prob_f = process_image_and_predict(full_path, scaler, classifier)
+
+                # Update the App Display for the current image
+                self.res_file_label.config(text=f"File: {file_name}")
+                self.res_pred_label.config(text=f"Predicted Sex: {pred}",
+                                           fg="#0056b3" if pred == "Female" else "#d9534f")
+                self.res_prob_m_label.config(text=f"Prob Male: {prob_m:.4f}")
+                self.res_prob_f_label.config(text=f"Prob Female: {prob_f:.4f}")
+
+                # IMPORTANT: This forces the GUI to redraw and show the labels above
+                self.master.update()
+
+                results_data.append({
+                    'filename': file_name,
+                    'predicted_sex': pred,
+                    'probability_male': f"{prob_m:.4f}",
+                    'probability_female': f"{prob_f:.4f}"
+                })
+
+            # Save CSV
+            os.makedirs(FOLDER_TO_SAVE_RESULTS, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            csv_path = os.path.join(FOLDER_TO_SAVE_RESULTS, f"batch_results_{timestamp}.csv")
+
+            with open(csv_path, mode='w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=['filename', 'predicted_sex', 'probability_male',
+                                                       'probability_female'])
+                writer.writeheader()
+                writer.writerows(results_data)
+
+            messagebox.showinfo("Success", f"Summary saved to:\n{csv_path}")
+            self.status_label.config(text="Status: Finished")
 
         except Exception as e:
-            messagebox.showerror("Processing Error", f"An error occurred during processing: {e}")
-            self.pred_label.config(text="Predicted Sex: ERROR", fg='red')
-            self.prob_m_label.config(text="Probability Male: N/A")
-            self.prob_f_label.config(text="Probability Female: N/A")
+            messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
         finally:
-            # Re-enable button
-            self.process_button.config(state=tk.NORMAL, text="Run Prediction", bg='green')
+            self.process_button.config(state=tk.NORMAL, text="Process All & Export CSV")
 
 
-# --- Run the App ---
 if __name__ == "__main__":
     root = tk.Tk()
     app = PredictorApp(root)
