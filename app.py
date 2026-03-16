@@ -21,7 +21,7 @@ CLASSIFIER_PATH = 'utils/the_model.save'
 
 
 # --- Main Processing Logic (Adapted from your script) ---
-def process_image_and_predict(file_path):
+def process_image_and_predict(file_path, scaler, classifier):
     """
     Runs the full image processing, segmentation, and prediction pipeline.
     """
@@ -51,13 +51,39 @@ def process_image_and_predict(file_path):
                         img_contour.flipped_data['curve'])
 
     # 3. Save Plots and Intermediate Results
-    # new_subfolder = os.path.splitext(file_name)[0]
-    # output_dir = os.path.join(FOLDER_TO_SAVE_RESULTS, new_subfolder)
-    # os.makedirs(output_dir, exist_ok=True)
-    #
-    # # Save image and data files
-    # cv2.imwrite(os.path.join(output_dir, file_name + '_gsn_img.png'), img_contour.flipped_data['img'])
-    # np.savetxt(os.path.join(output_dir, 'gsn_curve_registered.csv'), res, delimiter=",")
+    new_subfolder = os.path.splitext(file_name)[0]
+    output_dir = os.path.join(FOLDER_TO_SAVE_RESULTS, new_subfolder)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save image and data files
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    ax.imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
+    for contour in img_contour.contours:
+        ax.plot(contour[:, 1], contour[:, 0], linewidth=3, markersize=12, zorder=1)
+    ax.scatter(img_contour.points[0][1], img_contour.points[0][0], s=120, marker='X', color='red', zorder=2)
+    ax.scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
+    ax.annotate("A", (img_contour.points[0][1], img_contour.points[0][0]), xytext=(10, 10), textcoords='offset points',
+                color='red', fontsize=50)
+    ax.annotate("B", (img_contour.points[1][1], img_contour.points[1][0]), xytext=(10, 10), textcoords='offset points',
+                color='red', fontsize=50)
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.png'),
+                bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.eps'),
+                format="eps", dpi=100, bbox_inches="tight", transparent=True)
+    plt.close()
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
+    ax.set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
+    ax.set_ylim(ymin=0)
+    ax.axis('equal')
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.png'),
+                bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.eps'),
+                format="eps", dpi=600, bbox_inches="tight", transparent=True)
+    plt.close()
+
+    np.savetxt(os.path.join(output_dir, 'gsn_curve_registered.csv'), res, delimiter=",")
 
 
     # 4. Feature Extraction and Prediction
@@ -70,8 +96,8 @@ def process_image_and_predict(file_path):
 
     coefs = ef_coefs(outline, n_harmonics=7)
 
-    scaler = joblib.load(SCALER_PATH)
-    classifier = joblib.load(CLASSIFIER_PATH)
+    # scaler = joblib.load(SCALER_PATH)
+    # classifier = joblib.load(CLASSIFIER_PATH)
 
     # Prediction
     X = scaler.transform(coefs.reshape(1, -1))
@@ -80,7 +106,7 @@ def process_image_and_predict(file_path):
     y_prob_F = classifier.predict_proba(X)[0, 1]
 
     # Return results
-    return y_pred, y_prob_M, y_prob_F
+    return "Female" if y_pred == 1 else "Male", y_prob_M, y_prob_F
 
 
 # --- Tkinter GUI Application ---
@@ -148,12 +174,10 @@ class PredictorApp:
         self.process_button.config(state=tk.DISABLED, text="Processing...")
 
         try:
+            scaler = joblib.load(SCALER_PATH)
+            classifier = joblib.load(CLASSIFIER_PATH)
             # Run the core logic
-            y_pred, y_prob_M, y_prob_F = process_image_and_predict(self.file_path)
-            if y_pred == 1:
-                y_pred = "Female"
-            else:
-                y_pred = "Male"
+            y_pred, y_prob_M, y_prob_F = process_image_and_predict(self.file_path, scaler, classifier)
             # Update GUI labels with results
             self.pred_label.config(text=f"Predicted Sex: **{y_pred}**",
                                    font=('Arial', 14, 'bold'), fg='blue')

@@ -3,7 +3,7 @@ import os
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-from skimage import morphology, filters, measure #, img_as_ubyte
+from skimage import morphology, filters, measure
 
 
 # Image subprocessor class
@@ -126,7 +126,7 @@ class ContourGSN:
 
     def segment_gsn(self):
         """Segments the Great Sciatic Notch based on landmarks."""
-        point_1, point_2 = get_landmarks(self.processor.img)
+        point_1, point_2 = get_landmarks(self.processor.img, self.gsn_contour)
         # find the closest point to the first point
         distances = np.linalg.norm(self.gsn_contour - point_1, axis=1)
         idx1 = np.argmin(distances)
@@ -222,7 +222,7 @@ class CoordinateStore:
             cv2.imshow('Select two landmarks', self.img)
 
 
-def get_landmarks(image):
+def get_landmarks(image, contour):
     ### restrict contour
     image_temp = image.copy()
     coordinate_store = CoordinateStore(image_temp)
@@ -230,7 +230,14 @@ def get_landmarks(image):
     # gsn_contour = np.array([np.array([x, y]) for y, x in self.gsn_contour.astype(int)])
     # ctr = np.array(self.gsn_contour.astype(int)).reshape((-1, 1, 2)).astype(np.int32)
     # ctr = np.array(contour).reshape((-1, 1, 2)).astype(np.int32)
-    # cv2.drawContours(image_temp, [contour.astype(int)], 0, (0, 0, 255), 2)
+    cv_contour = []
+    for point in contour:
+        intify = [int(point[1]), int(point[0])]
+        cv_contour.append([intify])  # extra pair of brackets because ¯\_(ツ)_/¯ it's OpenCV
+        # convert to numpy and draw
+    cv_contour = np.array(cv_contour)
+    # cv2.drawContours(image_temp, [cv_contour.astype(int)], 0, (0, 0, 255), 2)
+    cv2.polylines(image_temp, [cv_contour.astype(int)], isClosed=False, color=(255, 0, 0), thickness=2)
     cv2.imshow('Select two landmarks', image_temp)
     # setting mouse handler for the image
     # and calling the click_event() function
