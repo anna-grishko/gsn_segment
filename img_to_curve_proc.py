@@ -22,13 +22,14 @@ for file_name in imgs:
     # print("- Shape/Dimensions: " + str(img.shape))
 
     img_new = img.resize()
-    img_gray, img_blur, img_open, gsn_mask = img_new.mask()
+    # img_gray, img_blur, img_open, gsn_mask = img_new.mask()
+    masked_img = img_new.mask()
 
-    img_contour = ContourGSN.find_contour(img_new, gsn_mask)
+    img_contour = ContourGSN.find_contour(img_new, masked_img['mask'])
     img_contour.show_contours()
     img_contour.segment_gsn()
 
-    res = transform_gsn(img_contour.points_flip[0], img_contour.points_flip[1], img_contour.gsn_curve_flip)
+    res = transform_gsn(img_contour.flipped_data['points'][0], img_contour.flipped_data['points'][1], img_contour.flipped_data['curve'])
 
     # Save results: each img into separate folder with img id name
     # inside: cropped resized img, gsn_contour before transform, gsn contour after transform
@@ -37,9 +38,9 @@ for file_name in imgs:
     if not os.path.exists(os.path.join(new_folder, new_subfolder)):
         os.makedirs(os.path.join(new_folder, new_subfolder))
     cv2.imwrite(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_gsn_img.png'),
-                img_contour.img_flip)
-    np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_contour.csv'), img_contour.gsn_contour_flip, delimiter=",")
-    np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_curve.csv'), img_contour.gsn_curve_flip, delimiter=",")
+                img_contour.flipped_data['img'])
+    np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_contour.csv'), img_contour.flipped_data['contour'], delimiter=",")
+    np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_curve.csv'), img_contour.flipped_data['curve'], delimiter=",")
     np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_curve_registered.csv'), res, delimiter=",")
 
 
@@ -66,16 +67,8 @@ for file_name in imgs:
     plt.close()
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    # ax[0].imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
-    # ax[1].imshow(img_blur, cmap='gray')
-    # ax[2].imshow(gsn_mask)
-    # ax[0].imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
-    # for contour in img_contour.contours:
-    #     ax[0].plot(contour[:, 1], contour[:, 0], linewidth=3, markersize=12, zorder=1)
-    # ax[0].scatter(img_contour.points[0][1], img_contour.points[0][0], s=120, marker='X', color='red', zorder=2)
-    # ax[0].scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
     ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
-    ax.set_box_aspect(gsn_mask.shape[0] / gsn_mask.shape[1])
+    ax.set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
     ax.set_ylim(ymin=0)
     ax.axis('equal')
     plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_multiplot2.png'),

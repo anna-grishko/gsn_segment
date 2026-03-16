@@ -3,99 +3,116 @@ import os
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-from skimage import morphology, filters, measure, img_as_ubyte
-from skimage.feature import canny
+from skimage import morphology, filters, measure #, img_as_ubyte
 
 
 # Image subprocessor class
 class ImgProcessor(object):
     def __init__(self, img):
+        if img is None:
+            raise ValueError("Input image cannot be None")
         self.img = img
-        self.size = img.size
-        self.shape = img.shape
+
+    @property
+    def shape(self):
+        return self.img.shape
 
     @classmethod
     def read(cls, folder, file_name):
-        img = cv2.imread(os.path.join(folder, file_name))
+        path = os.path.join(folder, file_name)
+        img = cv2.imread(path)
+        if img is None:
+            print(f"Error: Could not read image at {path}")
+            return None
         return cls(img)
 
-    def resize(self, height=500):
+    def resize(self, target_height=500):
         # Select ROI
-        r = cv2.selectROI("select the area and press enter", self.img)
+        roi = cv2.selectROI("select the area and press enter", self.img)
         # close the window
         cv2.destroyAllWindows()
         # Crop image
-        cropped_image = self.img[int(r[1]):int(r[1] + r[3]),
-                        int(r[0]):int(r[0] + r[2])]
-        # resize
-        scale = height / cropped_image.shape[0]
-        width = int(cropped_image.shape[1] * scale)
-        new_size = (width, height)
-        img_new = cv2.resize(cropped_image, new_size, interpolation=cv2.INTER_CUBIC)
-        return ImgProcessor(img_new)
+        image_to_process = self.img
 
-    def mask(self, blur=cv2.bilateralFilter):
+        if roi != (0, 0, 0, 0):
+            x, y, w, h = [int(v) for v in roi]
+            image_to_process = self.img[y:y + h, x:x + w]
+
+        # Calculate aspect ratio
+        h_orig, w_orig = image_to_process.shape[:2]
+        scale = target_height / h_orig
+        target_width = int(w_orig * scale)
+
+        self.img = cv2.resize(image_to_process, (target_width, target_height),
+                              interpolation=cv2.INTER_CUBIC)
+        return self
+
+    def mask(self, blur_func=cv2.bilateralFilter, **blur_params):
         img_gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        if blur == False:
-            img_blur = img_gray
+
+        # Apply blur with dynamic parameters
+        if blur_func:
+            # Default params for bilateral if none provided
+            if blur_func == cv2.bilateralFilter and not blur_params:
+                blur_params = {'d': 15, 'sigmaColor': 100, 'sigmaSpace': 5}
+            img_blur = blur_func(img_gray, **blur_params)
         else:
-            img_blur = blur(img_gray, 15, 100, 5)
-        # TODO pass various arguments as *args (?)
-        # img_blur = cv2.GaussianBlur(img_gray, (5, 5), 0)
-        # img_blur = cv2.medianBlur(img_gray, 3)
+            img_blur = img_gray
 
         # Simple Otsu threshold
-        # TODO: add other methods, e.g. closing
         img_open = morphology.area_opening(img_blur)
-        image_th_open = filters.threshold_otsu(img_open)
-        mask = np.where(img_open <= image_th_open, 1, 0)
+        thresh = filters.threshold_otsu(img_open)
+        mask = (img_open <= thresh).astype(np.uint8)
 
-        return [img_gray, img_blur, img_open, mask]
+        return {
+            "gray": img_gray,
+            "blur": img_blur,
+            "open": img_open,
+            "mask": mask
+        }
 
 
 class ContourGSN:
-    def __init__(self, img, mask, contours, gsn_contour_idx, gsn_contour, gsn_curve, gsn_contour_flip, gsn_curve_flip,
-                 points, points_flip, img_flip):
-        self.img = img
-        self.size = img.size
-        self.shape = img.shape
+    def __init__(self, processor_obj, mask):
+        # We take the whole processor object to access .img and .shape easily
+        self.processor = processor_obj
         self.mask = mask
-        self.contours = contours
-        self.gsn_contour_idx = gsn_contour_idx
-        self.gsn_contour = gsn_contour
-        self.gsn_curve = gsn_curve
-        self.gsn_curve_flip = gsn_curve_flip
-        self.gsn_contour_flip = gsn_contour_flip
-        self.points = points
-        self.points_flip = points_flip
-        self.img_flip = img_flip
+
+        # Core data (initialized by find_contour)
+        self.contours = []
+        self.gsn_contour = None
+        self.gsn_contour_idx = None
+
+        # Derived data (initialized by segment_gsn)
+        self.gsn_curve = None
+        self.points = []
+        self.flipped_data = {
+            "img": None,
+            "curve": None,
+            "contour": None,
+            "points": []
+        }
 
     @classmethod
-    def find_contour(cls, img, mask, shade=False):
-        if shade:
-            hsv_img = cv2.cvtColor(img.img, cv2.COLOR_BGR2HSV)
-            h, s, v = cv2.split(hsv_img)
-            s = filters.gaussian(s, sigma=3)
-            edges = canny(s, sigma=3)
-            contours, hierarchy = cv2.findContours(img_as_ubyte(edges), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            contours_new = []
-            for contour in contours:
-                contours_new.append(contour[:, 0, :])
-            contours = contours_new
-        else:
-            contours = measure.find_contours(mask, level=0.5)
+    def find_contour(cls, processor_obj, mask):
+        instance = cls(processor_obj, mask)
+        instance.contours = measure.find_contours(mask, level=0.5)
+
+        if not instance.contours:
+            raise ValueError("No contours found in the provided mask.")
+
         # GSN is never a closed contour
         # -> find the longer unclosed contour
         # for now substitute by the longest contour
-        contour_idx = np.argmax([contour.shape[0] for contour in contours])  # find index of the biggest contour
-        gsn_contour = contours[contour_idx]
+        instance.gsn_contour_idx = np.argmax([contour.shape[0] for contour in instance.contours])  # find index of the biggest contour
+        instance.gsn_contour = instance.contours[instance.gsn_contour_idx]
 
-        return ContourGSN(img, mask, contours, contour_idx, gsn_contour, [], [], [], [], [], [])
+        return instance
 
     def show_contours(self, all=True):
         fig, ax = plt.subplots()
         # img_gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        ax.imshow(cv2.cvtColor(self.img.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
+        ax.imshow(cv2.cvtColor(self.processor.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
         # ax.imshow(self.img) #, cmap=plt.cm.gray)
         if all:
             for contour in self.contours:
@@ -108,61 +125,72 @@ class ContourGSN:
         plt.show()
 
     def segment_gsn(self):
-        point_1, point_2 = get_landmarks(self.img.img)
+        """Segments the Great Sciatic Notch based on landmarks."""
+        point_1, point_2 = get_landmarks(self.processor.img)
         # find the closest point to the first point
         distances = np.linalg.norm(self.gsn_contour - point_1, axis=1)
-        index_1 = np.argmin(distances)
+        idx1 = np.argmin(distances)
         # find the closest point to the second point
         distances = np.linalg.norm(self.gsn_contour - point_2, axis=1)
-        index_2 = np.argmin(distances)
+        idx2 = np.argmin(distances)
 
-        point_piriform = self.gsn_contour[index_1].copy()
-        point_ischial = self.gsn_contour[index_2].copy()
+        # point_piriform = self.gsn_contour[idx1].copy()
+        # point_ischial = self.gsn_contour[idx].copy()
 
         # the final curve segment contains points between those indexes
-        if index_1 < index_2:
-            final_curve = self.gsn_contour[index_1:index_2]
-        else:
-            final_curve = self.gsn_contour[index_2:index_1]
+        start, end = min(idx1, idx2), max(idx1, idx2)
+        self.gsn_curve = self.gsn_contour[start:end]
+        self.points = [self.gsn_contour[idx1], self.gsn_contour[idx2]]
 
+        # Handle Flipping (Normalization)
+        self._apply_normalization()
+
+    def _apply_normalization(self):
+        """Internal helper to orient the notch consistently."""
         ### step 1 completed: curve segmented
         # origin [0,0]
-        # detect if the acr is facing up or down and automatically flip
+        # detect if the arc is facing up or down and automatically flip
         # point 1 = piriformis tubercle, point 2 = tip of the ischial spine
-        rows, cols, channels = self.shape
-        n_points = len(final_curve)
-        gsn_curve_flip = final_curve.copy()
-        gsn_contour_flip = self.gsn_contour.copy()
-        img_flip = self.img.img.copy()
-        point_piriform_flip = point_piriform.copy()
-        point_ischial_flip = point_ischial.copy()
+        rows, cols = self.processor.shape[:2]
+        img_f = self.processor.img.copy()
+        curve_f = self.gsn_curve.copy()
+        contour_f = self.gsn_contour.copy()
+        pts_f = [p.copy() for p in self.points]
+        # n_points = len(final_curve)
+        # gsn_curve_flip = final_curve.copy()
+        # gsn_contour_flip = self.gsn_contour.copy()
+        # img_flip = self.img.img.copy()
+        # point_piriform_flip = point_piriform.copy()
+        # point_ischial_flip = point_ischial.copy()
         # IF point piriformis tubercle on the left - OK
         # IF point 1 on the right
 
-        if point_piriform_flip[1] > point_ischial_flip[1]:
+        if pts_f[0][1] > pts_f[1][1]:
             # 1. flip around y-axis: cv2.flip(img_blur1, 1)
-            img_flip = cv2.flip(img_flip, 1)
-            gsn_curve_flip[:, 1] = cols - 1 - gsn_curve_flip[:, 1]
-            gsn_contour_flip[:, 1] = cols - 1 - gsn_contour_flip[:, 1]
-            point_piriform_flip[1] = cols - 1 - point_piriform_flip[1]
-            point_ischial_flip[1] = cols - 1 - point_ischial_flip[1]
+            img_f = cv2.flip(img_f, 1)
+            curve_f[:, 1] = cols - 1 - curve_f[:, 1]
+            contour_f[:, 1] = cols - 1 - contour_f[:, 1]
+            for p in pts_f: p[1] = cols - 1 - p[1]
 
         # IF curve facing upwards <=> curve midpoint y coord < curve y endpoints
-        if gsn_curve_flip[n_points // 2][0] < point_piriform_flip[0]:
-            img_flip = cv2.flip(img_flip, 0)
-            gsn_curve_flip[:, 0] = rows - 1 - gsn_curve_flip[:, 0]
-            gsn_contour_flip[:, 0] = rows - 1 - gsn_contour_flip[:, 0]
-            # recalculate landmarks location
-            point_piriform_flip[0] = rows - 1 - point_piriform_flip[0]
-            point_ischial_flip[0] = rows - 1 - point_ischial_flip[0]
+        mid_idx = len(curve_f) // 2
+        if curve_f[mid_idx][0] < pts_f[0][0]:
+            img_f = cv2.flip(img_f, 0)
+            curve_f[:, 0] = rows - 1 - curve_f[:, 0]
+            contour_f[:, 0] = rows - 1 - contour_f[:, 0]
+            for p in pts_f: p[0] = rows - 1 - p[0]
         # IF curve facing downwards - OK
 
-        self.img_flip = img_flip
-        self.gsn_curve = final_curve
-        self.gsn_curve_flip = gsn_curve_flip
-        self.gsn_contour_flip = gsn_contour_flip
-        self.points = [point_piriform, point_ischial]
-        self.points_flip = [point_piriform_flip, point_ischial_flip]
+        self.flipped_data = {
+            "img": img_f, "curve": curve_f,
+            "contour": contour_f, "points": pts_f
+        }
+        # self.img_flip = img_flip
+        # self.gsn_curve = final_curve
+        # self.gsn_curve_flip = gsn_curve_flip
+        # self.gsn_contour_flip = gsn_contour_flip
+        # self.points = [point_piriform, point_ischial]
+        # self.points_flip = [point_piriform_flip, point_ischial_flip]
 
 
 def transform_gsn(point_piriform, point_ischial, gsn_curve):
