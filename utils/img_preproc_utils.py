@@ -134,9 +134,6 @@ class ContourGSN:
         distances = np.linalg.norm(self.gsn_contour - point_2, axis=1)
         idx2 = np.argmin(distances)
 
-        # point_piriform = self.gsn_contour[idx1].copy()
-        # point_ischial = self.gsn_contour[idx].copy()
-
         # the final curve segment contains points between those indexes
         start, end = min(idx1, idx2), max(idx1, idx2)
         self.gsn_curve = self.gsn_contour[start:end]
@@ -156,14 +153,6 @@ class ContourGSN:
         curve_f = self.gsn_curve.copy()
         contour_f = self.gsn_contour.copy()
         pts_f = [p.copy() for p in self.points]
-        # n_points = len(final_curve)
-        # gsn_curve_flip = final_curve.copy()
-        # gsn_contour_flip = self.gsn_contour.copy()
-        # img_flip = self.img.img.copy()
-        # point_piriform_flip = point_piriform.copy()
-        # point_ischial_flip = point_ischial.copy()
-        # IF point piriformis tubercle on the left - OK
-        # IF point 1 on the right
 
         if pts_f[0][1] > pts_f[1][1]:
             # 1. flip around y-axis: cv2.flip(img_blur1, 1)
@@ -185,12 +174,7 @@ class ContourGSN:
             "img": img_f, "curve": curve_f,
             "contour": contour_f, "points": pts_f
         }
-        # self.img_flip = img_flip
-        # self.gsn_curve = final_curve
-        # self.gsn_curve_flip = gsn_curve_flip
-        # self.gsn_contour_flip = gsn_contour_flip
-        # self.points = [point_piriform, point_ischial]
-        # self.points_flip = [point_piriform_flip, point_ischial_flip]
+
 
 
 def transform_gsn(point_piriform, point_ischial, gsn_curve):
@@ -200,7 +184,6 @@ def transform_gsn(point_piriform, point_ischial, gsn_curve):
     # calculate translation according to the point_1
     shift = point_origin - point_piriform
 
-    M_shift = np.float32([[1, 0, shift[1]], [0, 1, shift[0]], [0, 0, 1]])
     point_ischial_shift = point_ischial + shift
 
     theta = np.arctan((point_ischial_shift[0]) / (point_ischial_shift[1]))
