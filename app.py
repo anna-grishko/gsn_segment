@@ -50,35 +50,20 @@ def process_image_and_predict(file_path):
                         img_contour.flipped_data['points'][1],
                         img_contour.flipped_data['curve'])
 
-    # 3. Save Plots and Intermediate Results (Optional, but included for completeness)
-    new_subfolder = os.path.splitext(file_name)[0]
-    output_dir = os.path.join(FOLDER_TO_SAVE_RESULTS, new_subfolder)
-    os.makedirs(output_dir, exist_ok=True)
+    # 3. Save Plots and Intermediate Results
+    # new_subfolder = os.path.splitext(file_name)[0]
+    # output_dir = os.path.join(FOLDER_TO_SAVE_RESULTS, new_subfolder)
+    # os.makedirs(output_dir, exist_ok=True)
+    #
+    # # Save image and data files
+    # cv2.imwrite(os.path.join(output_dir, file_name + '_gsn_img.png'), img_contour.flipped_data['img'])
+    # np.savetxt(os.path.join(output_dir, 'gsn_curve_registered.csv'), res, delimiter=",")
 
-    # Save image and data files
-    cv2.imwrite(os.path.join(output_dir, file_name + '_gsn_img.png'), img_contour.flipped_data['img'])
-    np.savetxt(os.path.join(output_dir, 'gsn_curve_registered.csv'), res, delimiter=",")
-
-    # Create and save the multi-plot (as in your original script)
-    fig, ax = plt.subplots(5, 1, figsize=(10, 10))
-    ax[0].imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB))
-    ax[1].imshow(masked_img['blur'], cmap='gray')
-    ax[2].imshow(masked_img['mask'])
-    ax[3].imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB))
-    # Plot contours (using dummy data if real code is unavailable)
-    for contour in img_contour.contours:
-        ax[3].plot(contour[:, 1], contour[:, 0], linewidth=1.2)
-    ax[3].plot(img_contour.points[0][1], img_contour.points[0][0], 'xr')
-    ax[3].plot(img_contour.points[1][1], img_contour.points[1][0], 'xr')
-    ax[4].plot(res[:, 1], res[:, 0], '-r', linewidth=1.2)
-    ax[4].set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
-    ax[4].set_ylim(ymin=0)
-    ax[4].axis('equal')
-    plt.savefig(os.path.join(output_dir, file_name + '_multiplot.png'), bbox_inches='tight')
-    plt.close(fig)  # Close the figure to free memory
 
     # 4. Feature Extraction and Prediction
     coordinates = sample_equidist(res, 100)
+    if coordinates[0][1] > coordinates[-1][1]:
+        coordinates = coordinates[::-1]
     new_dat = np.array([np.zeros(coordinates.shape[0]), coordinates[::-1, 1]]).T
     new_dat = new_dat[1:(coordinates.shape[0] - 2), :]
     outline = np.concatenate((coordinates, new_dat), axis=0)

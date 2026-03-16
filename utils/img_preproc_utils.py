@@ -229,9 +229,9 @@ def get_landmarks(image):
     # displaying the image
     # gsn_contour = np.array([np.array([x, y]) for y, x in self.gsn_contour.astype(int)])
     # ctr = np.array(self.gsn_contour.astype(int)).reshape((-1, 1, 2)).astype(np.int32)
-    # plot_img = cv2.drawContours(self.img.img, [gsn_contour], 0, (0, 0, 255), 2)
+    # ctr = np.array(contour).reshape((-1, 1, 2)).astype(np.int32)
+    # cv2.drawContours(image_temp, [contour.astype(int)], 0, (0, 0, 255), 2)
     cv2.imshow('Select two landmarks', image_temp)
-
     # setting mouse handler for the image
     # and calling the click_event() function
     cv2.setMouseCallback('Select two landmarks', coordinate_store.click_event)
