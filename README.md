@@ -17,7 +17,7 @@ The proposed automated workflow provides a reliable, objective, and population-i
 ## Workflow
 
 1) Run the main.py file
-2) Select a folder with your images of the GSN; select a folder where the results weill be stored
+2) Select a folder with your images of the GSN; select a folder where the results will be stored
 3) Press Start Batch Process
 4) Crop your images so the GSN is well-visible
 5) Place landmarks in the correct order: the piriformis tubercle and then the base of the spina ischiadica.
