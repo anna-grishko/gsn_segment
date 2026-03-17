@@ -22,17 +22,15 @@ for file_name in imgs:
     # print("- Shape/Dimensions: " + str(img.shape))
 
     img_new = img.resize()
-    # img_gray, img_blur, img_open, gsn_mask = img_new.mask()
     masked_img = img_new.mask()
 
     img_contour = ContourGSN.find_contour(img_new, masked_img['mask'])
-    img_contour.show_contours()
+    # img_contour.show_contours()
     img_contour.segment_gsn()
 
     res = transform_gsn(img_contour.flipped_data['points'][0], img_contour.flipped_data['points'][1], img_contour.flipped_data['curve'])
 
     # Save results: each img into separate folder with img id name
-    # inside: cropped resized img, gsn_contour before transform, gsn contour after transform
     new_folder = os.path.join(os.path.split(folder)[0], 'segmented_curves/final', collection)
     new_subfolder = os.path.splitext(file_name)[0]
     if not os.path.exists(os.path.join(new_folder, new_subfolder)):
@@ -45,9 +43,6 @@ for file_name in imgs:
 
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    # ax[0].imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
-    # ax[1].imshow(img_blur, cmap='gray')
-    # ax[2].imshow(gsn_mask)
     ax.imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
     for contour in img_contour.contours:
         ax.plot(contour[:, 1], contour[:, 0], linewidth=3, markersize=12, zorder=1)
@@ -55,15 +50,10 @@ for file_name in imgs:
     ax.scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
     ax.annotate("A", (img_contour.points[0][1], img_contour.points[0][0]), xytext=(10, 10), textcoords='offset points', color='red', fontsize=50)
     ax.annotate("B", (img_contour.points[1][1], img_contour.points[1][0]), xytext=(10, 10), textcoords='offset points', color='red', fontsize=50)
-    # ax[1].plot(res[:, 1], res[:, 0], '-r', linewidth=3)
-    # ax[1].set_box_aspect(gsn_mask.shape[0] / gsn_mask.shape[1])
-    # ax[1].set_ylim(ymin=0)
-    # ax[1].axis('equal')
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_multiplot.png'),
+    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_segmented.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_multiplot.eps'),
+    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_segmented.eps'),
                 format="eps", dpi=100, bbox_inches="tight", transparent=True)
-    # plt.show()
     plt.close()
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
@@ -71,9 +61,8 @@ for file_name in imgs:
     ax.set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
     ax.set_ylim(ymin=0)
     ax.axis('equal')
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_multiplot2.png'),
+    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_registered.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_multiplot2.eps'),
+    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_registered.eps'),
                 format="eps", dpi=600, bbox_inches="tight", transparent=True)
-    # plt.show()
     plt.close()
