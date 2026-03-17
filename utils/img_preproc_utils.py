@@ -27,6 +27,14 @@ class ImgProcessor(object):
         return cls(img)
 
     def resize(self, target_height=500):
+        # resize too big images to fit the window of selectROI
+        h, w = self.img.shape[:2]
+        if h > 800:
+            scale = 800 / h
+            target_width = int(w * scale)
+
+            self.img = cv2.resize(self.img, (target_width, 800),
+                                  interpolation=cv2.INTER_CUBIC)
         # Select ROI
         roi = cv2.selectROI("select the area and press enter", self.img)
         # close the window
