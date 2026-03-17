@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Segmentation of the greater sciatic notch (GSN) fron 2D images"
 authors = ["Anna Grishko <anicka.grishko@gmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
