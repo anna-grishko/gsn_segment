@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "gsn-segment"
+version = "0.1.0"
+description = "Segmentation of the greater sciatic notch (GSN) fron 2D images"
+authors = ["Anna Grishko <anicka.grishko@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+opencv-python = "^4.13.0.92"
+numpy = "^2.4.3"
+scikit-image = "^0.26.0"
+matplotlib = "^3.10.8"
+pandas = "^3.0.1"
+scikit-learn = "^1.8.0"
+seaborn = "^0.13.2"
+joblib = "^1.5.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
