@@ -1,5 +1,4 @@
 import numpy as np
-from matplotlib import pyplot as plt
 
 # folder = os.path.join('..', 'data', 'segmented_curves', 'final', 'Maxwell')
 # os.listdir(folder)
