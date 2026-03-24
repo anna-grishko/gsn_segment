@@ -2,6 +2,7 @@ import os
 import csv
 import joblib
 import numpy as np
+import pandas as pd
 import cv2
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
@@ -93,7 +94,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     y_prob_F = classifier.predict_proba(X)[0, 1]
 
     pred_text = "Female" if y_pred == 1 else "Male"
-    return pred_text, y_prob_M, y_prob_F
+    return pred_text, y_prob_M, y_prob_F, coefs
 
 
 class App(ctk.CTk):
@@ -172,6 +173,11 @@ class App(ctk.CTk):
         self.btn_run.configure(state="disabled", text="Processing...")
         results_data = []
 
+        # Generate ['A1', 'A2'... 'D7']
+        coef_cols = [f"{letter}{n}" for letter in "ABCD" for n in range(1, 8)]
+        all_cols = ['filename', 'predicted_sex', 'prob_male', 'prob_female'] + coef_cols
+        rows = []
+
         try:
             scaler = joblib.load(SCALER_PATH)
             classifier = joblib.load(CLASSIFIER_PATH)
@@ -184,7 +190,7 @@ class App(ctk.CTk):
                 # self.update()
 
                 # Predict (Now passing the output folder)
-                pred, prob_m, prob_f = process_image_and_predict(full_path, scaler, classifier, self.output_folder)
+                pred, prob_m, prob_f, coefs = process_image_and_predict(full_path, scaler, classifier, self.output_folder)
 
                 color = "#5dade2" if pred == "Female" else "#ec7063"
                 self.res_pred.configure(text=f"Result: {pred}", text_color=color)
@@ -192,22 +198,15 @@ class App(ctk.CTk):
                 self.res_prob_f.configure(text=f"Prob Female: {prob_f:.4f}")
                 self.update()
 
-                results_data.append({
-                    'filename': file_name,
-                    'predicted_sex': pred,
-                    'probability_male': f"{prob_m:.4f}",
-                    'probability_female': f"{prob_f:.4f}"
-                })
+                current_row = [file_name, pred, f"{prob_m:.4f}", f"{prob_f:.4f}"] + coefs.tolist()
+                rows.append(current_row)
 
             # Save CSV in the custom output folder
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             csv_path = os.path.join(self.output_folder, f"summary_{ts}.csv")
+            df = pd.DataFrame(rows, columns=all_cols)
+            df.to_csv(csv_path, index=False)
 
-            with open(csv_path, mode='w', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=['filename', 'predicted_sex', 'probability_male',
-                                                       'probability_female'])
-                writer.writeheader()
-                writer.writerows(results_data)
 
             messagebox.showinfo("Complete",
                                 f"Successfully processed {len(files)} files.\n\nSummary saved to:\n{csv_path}")

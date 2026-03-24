@@ -45,7 +45,7 @@ def ef_coefs(outline, n_harmonics, scale=False):
 # bn = np.array([-0.24224837,  0.03648185, -0.01691569,  0.00822352,  0.00667135, -0.00655407,  0.00596414])
 # cn = np.array([-0.08655806, -0.08009734, -0.02140565,  0.00487414, -0.01000876, -0.00490515, -0.00035708])
 # dn = np.array([0.28939113, -0.0316743, -0.01015062,  0.00158739, -0.00102937, 0.00123179, -0.00193434])
-def iefourier(an, bn, cn, dn, n_harmonics, n_points = 100, a0 = 0, c0 = 0):
+def iefourier(an, bn, cn, dn, n_harmonics, n_points=100, a0=0, c0=0):
     theta = np.linspace(0, 2*np.pi, n_points)
     harm_x = np.linspace(0, 0, n_points)
     harm_y = np.linspace(0, 0, n_points)
