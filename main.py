@@ -5,8 +5,11 @@ import pandas as pd
 import cv2
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
+import threading
 from datetime import datetime
-from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # use a non-interactive backend Agg (Anti-Grain Geometry)
+import matplotlib.pyplot as plt
 
 # --- Import custom modules ---
 from utils.curve_fitting_utils import sample_equidist
@@ -105,6 +108,10 @@ class App(ctk.CTk):
         self.input_folder = ""
         self.output_folder = ""
 
+        # Threading control
+        self.stop_event = threading.Event()
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         # Title
         self.title_label = ctk.CTkLabel(self, text="GSN Batch Processor", font=("Arial", 24, "bold"))
         self.title_label.pack(pady=(20, 10))
@@ -123,7 +130,7 @@ class App(ctk.CTk):
 
         # Run Button
         self.btn_run = ctk.CTkButton(self, text="Start Batch Process", state="disabled",
-                                     fg_color="#28a745", hover_color="#218838", command=self.run_process)
+                                     fg_color="#28a745", hover_color="#218838", command=self.start_thread)
         self.btn_run.pack(pady=10)
 
         # Status Display
@@ -143,6 +150,17 @@ class App(ctk.CTk):
         self.res_prob_f = ctk.CTkLabel(self.res_frame, text="Prob Female: -")
         self.res_prob_f.pack(pady=(0, 15))
 
+    def on_closing(self):
+        """Asks for confirmation before killing the process."""
+        # Show the confirmation dialog
+        if messagebox.askokcancel("Quit", "Do you want to quit? This will stop the current process."):
+            self.stop_event.set()  # Signal the thread to stop
+            self.destroy()         # Close the UI window
+            os._exit(0)            # Force kill the background process
+        else:
+            # If user clicks 'Cancel', the function just ends and the app stays open
+            return
+
     def check_ready(self):
         """Enables the start button only if both paths are set."""
         if self.input_folder and self.output_folder:
@@ -160,17 +178,38 @@ class App(ctk.CTk):
             self.out_path_label.configure(text=f"Output: {self.output_folder}", text_color="white")
             self.check_ready()
 
+    def start_thread(self):
+        """Launches the process in the background so the UI doesn't freeze."""
+        self.stop_event.clear()
+        self.btn_run.configure(state="disabled", text="Processing...")
+        self.btn_browse_in.configure(state="disabled")
+        self.btn_browse_out.configure(state="disabled")
+
+        # Start background worker
+        threading.Thread(target=self.run_process, daemon=True).start()
+
+    def update_ui_results(self, file_name, pred, prob_m, prob_f, status_text, color):
+        """Thread-safe way to update the GUI labels."""
+        self.status_label.configure(text=status_text)
+        self.res_file.configure(text=f"Predicted file: {file_name}")
+        self.res_pred.configure(text=f"Result: {pred}", text_color=color)
+        self.res_prob_m.configure(text=f"Prob Male: {prob_m:.4f}")
+        self.res_prob_f.configure(text=f"Prob Female: {prob_f:.4f}")
+
     def run_process(self):
         valid_ext = ('.png', '.jpg', '.jpeg', '.tif', '.bmp')
         files = [f for f in os.listdir(self.input_folder) if f.lower().endswith(valid_ext)]
 
+        # if not files:
+        #     messagebox.showwarning("No Images", "No valid image files found in the input folder.")
+        #     return
         if not files:
-            messagebox.showwarning("No Images", "No valid image files found in the input folder.")
+            self.after(0, lambda: messagebox.showwarning("No Images", "No valid images found."))
+            self.after(0, self.reset_buttons)
             return
 
         # 2. Setup
         self.btn_run.configure(state="disabled", text="Processing...")
-        results_data = []
 
         # Generate ['A1', 'A2'... 'D7']
         coef_cols = [f"{letter}{n}" for letter in "ABCD" for n in range(1, 8)]
@@ -182,20 +221,18 @@ class App(ctk.CTk):
             classifier = joblib.load(CLASSIFIER_PATH)
 
             for i, file_name in enumerate(files):
-                full_path = os.path.join(self.input_folder, file_name)
+                if self.stop_event.is_set():
+                    return  # Exit if window was closed
 
-                self.status_label.configure(text=f"Processing {i + 1} of {len(files)}")
-                self.res_file.configure(text=f"Predicted file: {file_name}")
-                # self.update()
+                full_path = os.path.join(self.input_folder, file_name)
 
                 # Predict (Now passing the output folder)
                 pred, prob_m, prob_f, coefs = process_image_and_predict(full_path, scaler, classifier, self.output_folder)
 
+                # UI Update (using after() to be thread-safe)
                 color = "#5dade2" if pred == "Female" else "#ec7063"
-                self.res_pred.configure(text=f"Result: {pred}", text_color=color)
-                self.res_prob_m.configure(text=f"Prob Male: {prob_m:.4f}")
-                self.res_prob_f.configure(text=f"Prob Female: {prob_f:.4f}")
-                self.update()
+                status = f"Processing {i + 1} of {len(files)}"
+                self.after(0, self.update_ui_results, file_name, pred, prob_m, prob_f, status, color)
 
                 current_row = [file_name, pred, f"{prob_m:.4f}", f"{prob_f:.4f}"] + coefs.tolist()
                 rows.append(current_row)
@@ -206,16 +243,20 @@ class App(ctk.CTk):
             df = pd.DataFrame(rows, columns=all_cols)
             df.to_csv(csv_path, index=False)
 
-
-            messagebox.showinfo("Complete",
-                                f"Successfully processed {len(files)} files.\n\nSummary saved to:\n{csv_path}")
+            self.after(0,
+                       lambda: messagebox.showinfo("Complete", f"Processed {len(files)} files.\nSaved to: {csv_path}"))
 
         except Exception as e:
-            messagebox.showerror("Runtime Error", f"An error occurred: {str(e)}")
+            self.after(0, lambda: messagebox.showerror("Runtime Error", f"An error occurred: {str(e)}"))
 
         finally:
-            self.status_label.configure(text="Status: Finished")
-            self.btn_run.configure(state="normal", text="Start Batch Process")
+            self.after(0, self.reset_buttons)
+
+    def reset_buttons(self):
+        self.status_label.configure(text="Status: Finished")
+        self.btn_run.configure(state="normal", text="Start Batch Process")
+        self.btn_browse_in.configure(state="normal")
+        self.btn_browse_out.configure(state="normal")
 
 
 if __name__ == "__main__":
