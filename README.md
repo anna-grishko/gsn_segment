@@ -4,10 +4,28 @@ is a project to predict biological sex from the greater sciatic notch (GSN) from
 
 ## Installation
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install abc.
+You should have [Python](https://www.python.org/downloads/) installed and IDE ([Pycharm](https://www.jetbrains.com/pycharm/download/?section=windows) or [Visual Studio](https://code.visualstudio.com/Download)). From your IDE clone the project: https://github.com/anna-grishko/gsn_segment.git
+
+<p align="center">
+  <img src="figures/clone_proj.png" alt="framework" width="90%">
+</p> 
+
+Use the package manager [pip](https://pip.pypa.io/en/stable/) in the Terminal to install poetry manager.
 
 ```bash
-pip install abc
+pip install poetry
+```
+With installed poetry call
+
+```bash
+poetry install
+```
+to install project dependencies.
+
+And run the script for thr sex estimation
+
+```bash
+poetry run python main.py
 ```
 
 ## Introduction
