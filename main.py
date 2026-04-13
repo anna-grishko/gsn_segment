@@ -1,5 +1,4 @@
 import os
-import csv
 import joblib
 import numpy as np
 import pandas as pd
@@ -9,7 +8,7 @@ from tkinter import filedialog, messagebox
 from datetime import datetime
 from matplotlib import pyplot as plt
 
-# --- Import your custom modules ---
+# --- Import custom modules ---
 from utils.curve_fitting_utils import sample_equidist
 from utils.ef_functions import ef_coefs
 from utils.img_preproc_utils import ImgProcessor, ContourGSN, transform_gsn
@@ -52,7 +51,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     ax.imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
     for contour in img_contour.contours:
-        ax.plot(contour[:, 1], contour[:, 0], linewidth=3, markersize=12, zorder=1)
+        ax.plot(contour[:, 1], contour[:, 0], color='w', linewidth=3, markersize=12, zorder=1)
     ax.scatter(img_contour.points[0][1], img_contour.points[0][0], s=120, marker='X', color='red', zorder=2)
     ax.scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
     ax.annotate("A", (img_contour.points[0][1], img_contour.points[0][0]), xytext=(10, 10), textcoords='offset points',
