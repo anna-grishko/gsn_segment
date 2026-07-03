@@ -148,7 +148,7 @@ class ContourGSN:
         self.points = [self.gsn_contour[idx1], self.gsn_contour[idx2]]
 
         # Handle Flipping (Normalization)
-        self._apply_normalization()
+        # self._apply_normalization()
 
     def _apply_normalization(self):
         """Internal helper to orient the notch consistently."""
@@ -171,7 +171,7 @@ class ContourGSN:
 
         # IF curve facing upwards <=> curve midpoint y coord < curve y endpoints
         mid_idx = len(curve_f) // 2
-        if curve_f[mid_idx][0] < pts_f[0][0]:
+        if curve_f[mid_idx][0] < (pts_f[0][0] + pts_f[1][0])/2:
             img_f = cv2.flip(img_f, 0)
             curve_f[:, 0] = rows - 1 - curve_f[:, 0]
             contour_f[:, 0] = rows - 1 - contour_f[:, 0]
@@ -188,58 +188,58 @@ class ContourGSN:
 def transform_gsn(point_piriform, point_ischial, gsn_curve):
     ### Affine Transformation (translation and rotation)
     # origin (pocatek souradnic) [row,column]=[y,x]
-    # point_origin = [0, 0]
-    # # calculate translation according to the point_1
-    # shift = point_origin - point_piriform
-    #
-    # point_ischial_shift = point_ischial + shift
-    #
-    # theta = np.arctan((point_ischial_shift[0]) / (point_ischial_shift[1]))
-    # M = cv2.getRotationMatrix2D((point_origin), theta * 180 / np.pi, 1)
-    #
-    # # translate points
-    # shifted_points = gsn_curve + shift
-    # # rotate points
-    # M_new = np.array([[M[0][0], -M[0][1]],
-    #                   [M[0][1], M[0][0]]])
-    # transformed_points = M_new.dot(shifted_points.T).T
-    # point_ischial = M_new.dot(point_ischial_shift.T).T
-    #
-    # # Scale
-    # transformed_points = transformed_points / point_ischial[1]
+    point_origin = [0, 0]
+    # calculate translation according to the point_1
+    shift = point_origin - point_piriform
+
+    point_ischial_shift = point_ischial + shift
+
+    theta = np.arctan((point_ischial_shift[0]) / (point_ischial_shift[1]))
+    M = cv2.getRotationMatrix2D((point_origin), theta * 180 / np.pi, 1)
+
+    # translate points
+    shifted_points = gsn_curve + shift
+    # rotate points
+    M_new = np.array([[M[0][0], -M[0][1]],
+                      [M[0][1], M[0][0]]])
+    transformed_points = M_new.dot(shifted_points.T).T
+    point_ischial = M_new.dot(point_ischial_shift.T).T
+
+    # Scale
+    transformed_points = transformed_points / point_ischial[1]
     #
     # return transformed_points
-    # 1. Translation: Move piriform to [0, 0]
-    # Assuming points are [y, x] or [row, col]
-    shifted_curve = gsn_curve - point_piriform
-    shifted_ischial = point_ischial - point_piriform
+    # # 1. Translation: Move piriform to [0, 0]
+    # # Assuming points are [y, x] or [row, col]
+    # shifted_curve = gsn_curve - point_piriform
+    # shifted_ischial = point_ischial - point_piriform
+    #
+    # # 2. Define the Target
+    # # We want shifted_ischial to become [0, 1]
+    # # (y=0, x=1 in a standard Cartesian sense, or row=0, col=1)
+    # target_ischial = np.array([0.0, 1.0])
+    #
+    # # 3. Calculate Rotation and Scale via Complex Numbers (The "Secret" Trick)
+    # # This is the most robust way to handle 2D rotation + scaling.
+    # # We treat [y, x] as a complex number: x + iy
+    # z_current = shifted_ischial[1] + 1j * shifted_ischial[0]
+    # z_target = target_ischial[1] + 1j * target_ischial[0]
+    #
+    # # The transformation multiplier is z_target / z_current
+    # transform_factor = z_target / z_current
+    #
+    # # Apply to all points
+    # complex_curve = shifted_curve[:, 1] + 1j * shifted_curve[:, 0]
+    # transformed_complex = complex_curve * transform_factor
+    #
+    # # Convert back to [y, x]
+    # transformed_points = np.column_stack((transformed_complex.imag, transformed_complex.real))
 
-    # 2. Define the Target
-    # We want shifted_ischial to become [0, 1]
-    # (y=0, x=1 in a standard Cartesian sense, or row=0, col=1)
-    target_ischial = np.array([0.0, 1.0])
-
-    # 3. Calculate Rotation and Scale via Complex Numbers (The "Secret" Trick)
-    # This is the most robust way to handle 2D rotation + scaling.
-    # We treat [y, x] as a complex number: x + iy
-    z_current = shifted_ischial[1] + 1j * shifted_ischial[0]
-    z_target = target_ischial[1] + 1j * target_ischial[0]
-
-    # The transformation multiplier is z_target / z_current
-    transform_factor = z_target / z_current
-
-    # Apply to all points
-    complex_curve = shifted_curve[:, 1] + 1j * shifted_curve[:, 0]
-    transformed_complex = complex_curve * transform_factor
-
-    # Convert back to [y, x]
-    transformed_points = np.column_stack((transformed_complex.imag, transformed_complex.real))
-
-    # 4. Force Exactness
-    # Even with the best math, floats can be 0.00000000000001 off.
-    # Explicitly set the endpoints to guarantee [0,0] and [0,1]
-    transformed_points[0] = [0.0, 0.0]
-    transformed_points[-1] = [0.0, 1.0]
+    # IF curve facing upwards <=> curve midpoint y coord < curve y endpoints
+    mid_idx = len(transformed_points) // 2
+    if transformed_points[mid_idx][0] < 0:
+        transformed_points[:, 0] = - 1 * transformed_points[:, 0]
+    # IF curve facing downwards - OK
 
     return transformed_points
 
