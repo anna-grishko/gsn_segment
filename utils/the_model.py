@@ -17,10 +17,6 @@ sns.set_theme(style="ticks", font_scale=1.25)
 random_state = 123
 class_dict = {'F': 1, 'M': 0}
 
-# EF_data = pd.read_csv('C:/Anna/!studium/DP/R/ef_r_data.csv', header=0)
-# data = EF_data.rename(columns={'collection_id': 'collection'})
-# dataset = data.iloc[:, np.r_[8:36]]
-
 # read all data
 folder_main = '../data/segmented_curves/final'
 sup_folders = os.listdir(folder_main)
@@ -40,6 +36,7 @@ for folder in sup_folders:
         new_dat = np.array([np.zeros(coordinates.shape[0]), coordinates[::-1, 1]]).T
         new_dat = new_dat[1:(coordinates.shape[0] - 2), :]  # remove first and last points (duplicities)
         outline = np.concatenate((coordinates, new_dat), axis=0)
+        print('filename ' + specimen)
         coefs = ef_coefs(outline, n_harmonics=7)
 
         df = pd.DataFrame(data=coefs).T
@@ -52,7 +49,11 @@ for folder in sup_folders:
             df['id'] = specimen.split("_")[0] + "_" + str(int(specimen.split("_")[1]))  # Simon
         if folder == 'Chiang_Mai':
             df['id'] = specimen
+        if folder == "Khon_Kaen":
+            df['id'] = specimen.split("-")[specimen.split("-").__len__()-1].split("_")[0] + '/' + specimen.split("-")[specimen.split("-").__len__()-1].split("_")[1]
         data.append(df)
+
+
 data = pd.concat(data)
 
 # read metadata
@@ -64,14 +65,15 @@ y = new_data[['is female']]
 
 svm = SVC(random_state=random_state, probability=True)
 param_grid = {'kernel': ('linear', 'rbf'),
-              "C": np.logspace(-2, -1, 1, 2, 3),
-              'gamma': np.logspace(-2, -1, 1, 2, 3)}
+              "C": np.logspace(-1, 1, num=5),
+              'gamma': np.logspace(-1, 1, num=5)}
 scaler = StandardScaler()
-clf = GridSearchCV(estimator=svm, param_grid=param_grid, cv=10)
+clf = GridSearchCV(estimator=svm,  param_grid=param_grid, cv=10)
 scaler.fit(dataset.values)
 joblib.dump(scaler, 'scaler.save')
 X_train = scaler.transform(dataset.values)
 y_train = np.array(y).ravel()
+
 
 with ignore_warnings(category=ConvergenceWarning):
     clf.fit(X_train, y_train)
@@ -86,12 +88,11 @@ filename = 'the_model.save'
 joblib.dump(clf, open(filename, 'wb'))
 
 ###
-y_pred = clf.predict(X_train)
-y_prob_M = clf.predict_proba(X_train)[:, 0]  # prob Male
-y_prob_F = clf.predict_proba(X_train)[:, 1]  # prob Female
-
-df = pd.concat([pd.Series(y_pred), pd.Series(y_prob_M), pd.Series(y_prob_F)], axis=1)
-df.columns = ['pred_F', 'prob_M', 'prob_F']
-# df = pd.concat([data_sample.reset_index(), df], axis=1)
-df = pd.concat([new_data.reset_index(), df], axis=1)
-df.to_csv("pred_ef.csv", index=False)
+# y_pred = clf.predict(X_train)
+# y_prob_M = clf.predict_proba(X_train)[:, 0]  # prob Male
+# y_prob_F = clf.predict_proba(X_train)[:, 1]  # prob Female
+#
+# df = pd.concat([pd.Series(y_pred), pd.Series(y_prob_M), pd.Series(y_prob_F)], axis=1)
+# df.columns = ['pred_F', 'prob_M', 'prob_F']
+# df = pd.concat([new_data.reset_index(), df], axis=1)
+# df.to_csv("pred_svm.csv", index=False)
