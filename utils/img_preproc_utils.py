@@ -148,7 +148,7 @@ class ContourGSN:
         self.points = [self.gsn_contour[idx1], self.gsn_contour[idx2]]
 
         # Handle Flipping (Normalization)
-        # self._apply_normalization()
+        self._apply_normalization()
 
     def _apply_normalization(self):
         """Internal helper to orient the notch consistently."""
