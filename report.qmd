@@ -1,0 +1,49 @@
+---
+title: "Report"
+echo: False
+error: False
+warning: False
+format:
+    pdf 
+
+---
+```{python}
+#| tags: [parameters]
+output_dir = "figures/UNAM_026_F"
+img_id = "UNAM_026_F"
+pred = "Female"
+prob_M = 0.0271
+prob_F = 0.9729
+datetime = "2026-11-03 17:23:34"
+```
+
+```{python}
+import os
+```
+
+<!-- # Predicted sex: {{<var pred>}}
+
+Probability Male: {{<var pred_prob_M>}}
+
+Probability Female: {{<var pred_prob_F>}}
+
+Date: {{<var datetime>}} -->
+
+**Image id**: `{python} img_id`
+
+**Predicted sex**: **`{python} pred`**
+
+**Probability Male**: `{python} prob_M`
+
+**Probability Female**: `{python} prob_F`
+
+**Date**: `{python} datetime`
+
+
+::: {layout-ncol=2}
+![Original](`{python} os.path.join(output_dir, img_id + '_original.png')`)
+
+![Segmented](`{python} os.path.join(output_dir, img_id + '_segmented.png')`)
+:::
+
+![Location within sample](`{python} os.path.join(output_dir, img_id + '_comparison.png')`){width=60%, fig-align="left"}

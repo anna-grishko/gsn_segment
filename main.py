@@ -1,20 +1,28 @@
 import os
+import subprocess
 import joblib
 import numpy as np
 import pandas as pd
-import cv2
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import threading
 from datetime import datetime
 import matplotlib
+from sklearn.pipeline import make_pipeline
 matplotlib.use('Agg')  # use a non-interactive backend Agg (Anti-Grain Geometry)
 import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 # --- Import custom modules ---
 from utils.curve_fitting_utils import sample_equidist
 from utils.ef_functions import ef_coefs
 from utils.img_preproc_utils import ImgProcessor, ContourGSN, transform_gsn
+from utils.plot_func import plot_orig_image, plot_registered_curve, plot_data
+
+sns.set_theme(style="ticks")
+colors = {'F': '#F8766D', 'M': '#00BFC4', 1: '#F8766D', 0: '#00BFC4'}
+random_state = 42
 
 # Configuration
 FOLDER_TO_SAVE_RESULTS = 'data/segmented_curves_gui_output'
@@ -51,32 +59,32 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     os.makedirs(output_dir, exist_ok=True)
 
     # Save image and data files
+    # img1 - save the original image
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
-    for contour in img_contour.contours:
-        ax.plot(contour[:, 1], contour[:, 0], color='w', linewidth=3, markersize=12, zorder=1)
-    ax.scatter(img_contour.points[0][1], img_contour.points[0][0], s=120, marker='X', color='red', zorder=2)
-    ax.scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
-    ax.annotate("A", (img_contour.points[0][1], img_contour.points[0][0]), xytext=(10, 10), textcoords='offset points',
-                color='red', fontsize=50)
-    ax.annotate("B", (img_contour.points[1][1], img_contour.points[1][0]), xytext=(10, 10), textcoords='offset points',
-                color='red', fontsize=50)
+    plot_orig_image(ax, img_new.img)
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_original.png'),
+                bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_original.eps'),
+                format="eps", dpi=100, bbox_inches="tight", transparent=True)
+    
+
+    # img2 - save segmented image with contours and points A/B marked
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    plot_orig_image(ax, img_new.img, contours=img_contour.contours, points=img_contour.points)
     plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.png'),
                 bbox_inches='tight')
     plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.eps'),
                 format="eps", dpi=100, bbox_inches="tight", transparent=True)
-    plt.close(fig)
 
+
+    # img3 - save the registered curve
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
-    ax.set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
-    ax.set_ylim(ymin=0)
-    ax.axis('equal')
+    plot_registered_curve(ax, res, img_new.img.shape)
     plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.png'),
                 bbox_inches='tight')
     plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.eps'),
                 format="eps", dpi=600, bbox_inches="tight", transparent=True)
-    plt.close(fig)  # CRITICAL: Close plot to free memory during batch
+    
 
     # 4. Feature Extraction
     coordinates = sample_equidist(res, 100)
@@ -89,13 +97,43 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
 
     coefs = ef_coefs(outline, n_harmonics=7)
 
+    ### plot 2 PCs of original data with confidence ellipses and current datapoint
+    fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+    plot_data(ax, ef_coefs=coefs, colors=colors, sample_name=os.path.splitext(file_name)[0], random_state=random_state)
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_comparison.png'),
+                bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_comparison.eps'),
+                format="eps", dpi=100, bbox_inches="tight", transparent=True)
+
     # 5. Prediction
     X = scaler.transform(coefs.reshape(1, -1))
     y_pred = classifier.predict(X)[0]
     y_prob_M = classifier.predict_proba(X)[0, 0]
     y_prob_F = classifier.predict_proba(X)[0, 1]
-
     pred_text = "Female" if y_pred == 1 else "Male"
+
+
+    # Create quarto report
+    command = [
+        'quarto', 'render', 'report.qmd',
+        '-P', f'img_id:{os.path.splitext(file_name)[0]}',
+        '-P', f'pred:{pred_text}',
+        '-P', f'prob_M:{y_prob_M:.4f}',
+        '-P', f'prob_F:{y_prob_F:.4f}',
+        '-P', f'datetime:{datetime.now().strftime("%Y:%m:%d %H:%M:%S")}',
+        '-P', f'output_dir:{output_dir}',
+        '--output', f'report_{os.path.splitext(file_name)[0]}.pdf',
+    ]
+
+    try: 
+        print("Running Command", ' '.join(command))
+        result = subprocess.run(command, check=True)
+
+    except Exception as e:
+        print(f"Error generating report for {os.path.splitext(file_name)[0]}")
+        print(e)
+
+    plt.close('all')
     return pred_text, y_prob_M, y_prob_F, coefs
 
 
@@ -228,7 +266,6 @@ class App(ctk.CTk):
 
                 # Predict (Now passing the output folder)
                 pred, prob_m, prob_f, coefs = process_image_and_predict(full_path, scaler, classifier, self.output_folder)
-
                 # UI Update (using after() to be thread-safe)
                 color = "#5dade2" if pred == "Female" else "#ec7063"
                 status = f"Processing {i + 1} of {len(files)}"
@@ -247,7 +284,7 @@ class App(ctk.CTk):
                        lambda: messagebox.showinfo("Complete", f"Processed {len(files)} files.\nSaved to: {csv_path}"))
 
         except Exception as e:
-            self.after(0, lambda: messagebox.showerror("Runtime Error", f"An error occurred: {str(e)}"))
+            self.after(0, lambda e=e: messagebox.showerror("Runtime Error", f"An error occurred: {str(e)}"))
 
         finally:
             self.after(0, self.reset_buttons)
