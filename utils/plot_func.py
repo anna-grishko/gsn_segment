@@ -32,8 +32,8 @@ def plot_orig_image(ax, image, contours=None, points=None):
         for contour in contours:
             ax.plot(contour[:, 1], contour[:, 0], color='w', linewidth=3, markersize=12, zorder=1)
     if points is not None:
-        ax.scatter(points[0][1], points[0][0], s=120, marker='X', color='red', zorder=2)
-        ax.scatter(points[1][1], points[1][0], s=120, marker='X', color='red', zorder=3)
+        ax.scatter(points[0][1], points[0][0], s=150, marker='X', color='red', zorder=2)
+        ax.scatter(points[1][1], points[1][0], s=150, marker='X', color='red', zorder=3)
         ax.annotate("A", (points[0][1], points[0][0]), xytext=(10, 10),
                     textcoords='offset points', color='red', fontsize=50)
         ax.annotate("B", (points[1][1], points[1][0]), xytext=(10, 10),
@@ -59,12 +59,15 @@ def plot_data(ax, ef_coefs, colors, sample_name, random_state):
     X_male = X_embedded[y == 'M']
     new_data_embedded = pca.transform(ef_coefs.reshape(1, -1))
 
-    sns.scatterplot(x=X_embedded[:, 0], y=X_embedded[:, 1], s=100,
+    sns.scatterplot(x=X_embedded[:, 0], y=X_embedded[:, 1], s=200,
                     hue=y, hue_order=['F', 'M'], palette=colors)
     # Add confidence ellipses
     draw_conf_ellipse(X_female[:, 0], X_female[:, 1], color=colors['F'], ax=ax)
     draw_conf_ellipse(X_male[:, 0], X_male[:, 1], color=colors['M'], ax=ax)
-    ax.set_xlabel(f"PC 1 ({pca.named_steps.pca.explained_variance_ratio_[0] * 100:.2f}%)", fontsize=13)
-    ax.set_ylabel(f"PC 2 ({pca.named_steps.pca.explained_variance_ratio_[1] * 100:.2f}%)", fontsize=13)
-    sns.scatterplot(x=new_data_embedded[:, 0], y=new_data_embedded[:, 1], s=200,
+    ax.set_xlabel(f"PC 1 ({pca.named_steps.pca.explained_variance_ratio_[0] * 100:.2f}%)", fontsize=22)
+    ax.set_ylabel(f"PC 2 ({pca.named_steps.pca.explained_variance_ratio_[1] * 100:.2f}%)", fontsize=22)
+    sns.scatterplot(x=new_data_embedded[:, 0], y=new_data_embedded[:, 1], s=300,
                     color='black', marker='X', label=sample_name, ax=ax)
+    plt.legend(fontsize=20)
+    plt.xticks(fontsize = 15)
+    plt.yticks(fontsize = 15)

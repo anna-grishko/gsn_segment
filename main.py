@@ -118,10 +118,10 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
         'quarto', 'render', 'report.qmd',
         '-P', f'img_id:{os.path.splitext(file_name)[0]}',
         '-P', f'pred:{pred_text}',
-        '-P', f'prob_M:{y_prob_M:.4f}',
-        '-P', f'prob_F:{y_prob_F:.4f}',
-        '-P', f'datetime:{datetime.now().strftime("%Y:%m:%d %H:%M:%S")}',
-        '-P', f'output_dir:{output_dir}',
+        '-P', f'prob_M:{y_prob_M*100:.2f}%',
+        '-P', f'prob_F:{y_prob_F*100:.2f}%',
+        '-P', f'output_dir:figures/{os.path.splitext(file_name)[0]}',
+        '-M', f'datetime:{datetime.now().strftime("%Y:%m:%d %H:%M:%S")}',
         '--output', f'report_{os.path.splitext(file_name)[0]}.pdf',
     ]
 

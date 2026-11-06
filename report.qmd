@@ -4,46 +4,52 @@ echo: False
 error: False
 warning: False
 format:
-    pdf 
-
+    typst:
+        template-partials: 
+            - typst-show.typ
+            - typst-template.typ
+# metadata parameters
+datetime: "2026-11-03 17:23:34"
 ---
+
 ```{python}
 #| tags: [parameters]
 output_dir = "figures/UNAM_026_F"
 img_id = "UNAM_026_F"
 pred = "Female"
-prob_M = 0.0271
-prob_F = 0.9729
-datetime = "2026-11-03 17:23:34"
+prob_M = "2.71%"
+prob_F = "97.29%"
 ```
 
 ```{python}
 import os
 ```
 
-<!-- # Predicted sex: {{<var pred>}}
-
-Probability Male: {{<var pred_prob_M>}}
-
-Probability Female: {{<var pred_prob_F>}}
-
-Date: {{<var datetime>}} -->
-
+:::::: {layout="[0.33, 0.33, 0.33]"}
+::::: {#firstcol}
 **Image id**: `{python} img_id`
+:::::
 
+::::: {#secondcol}
 **Predicted sex**: **`{python} pred`**
+:::::
 
-**Probability Male**: `{python} prob_M`
+::::: {#thirdcol}
+::: {.list-table}
+- - Male
+  - Female
 
-**Probability Female**: `{python} prob_F`
-
-**Date**: `{python} datetime`
-
-
-::: {layout-ncol=2}
-![Original](`{python} os.path.join(output_dir, img_id + '_original.png')`)
-
-![Segmented](`{python} os.path.join(output_dir, img_id + '_segmented.png')`)
+- - `{python} prob_M`
+  - `{python} prob_F`
 :::
+:::::
+::::::
 
-![Location within sample](`{python} os.path.join(output_dir, img_id + '_comparison.png')`){width=60%, fig-align="left"}
+
+::: {layout="[[1,1], [1]]"}
+![Original image](`{python} os.path.join(output_dir, img_id + '_original.png')`)
+
+![Segmented image](`{python} os.path.join(output_dir, img_id + '_segmented.png')`)
+
+![Location of `{python} img_id` within training data sample](`{python} os.path.join(output_dir, img_id + '_comparison.png')`){width="60%," fig-align="left"}
+:::
