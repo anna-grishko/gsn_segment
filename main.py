@@ -98,8 +98,8 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     coefs = ef_coefs(outline, n_harmonics=7)
 
     ### plot 2 PCs of original data with confidence ellipses and current datapoint
-    fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-    plot_data(ax, ef_coefs=coefs, colors=colors, sample_name=os.path.splitext(file_name)[0], random_state=random_state)
+    fig = plt.figure(figsize=(15, 10), layout="constrained")
+    plot_data(fig, ef_coefs=coefs, colors=colors, sample_name=os.path.splitext(file_name)[0], random_state=random_state)
     plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_comparison.png'),
                 bbox_inches='tight')
     plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_comparison.eps'),
@@ -122,6 +122,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
         '-P', f'prob_F:{y_prob_F*100:.2f}%',
         '-P', f'output_dir:figures/{os.path.splitext(file_name)[0]}',
         '-M', f'datetime:{datetime.now().strftime("%Y:%m:%d %H:%M:%S")}',
+        '-M', 'title:Report: sex prediction based on Greater Sciatic Notch shape',
         '--output', f'report_{os.path.splitext(file_name)[0]}.pdf',
     ]
 
