@@ -46,10 +46,14 @@ import os
 ::::::
 
 
-::: {layout="[[1,1], [1]]"}
+::: {layout="[1,1]"}
 ![Original image](`{python} os.path.join(output_dir, img_id + '_original.png')`)
 
 ![Segmented image](`{python} os.path.join(output_dir, img_id + '_segmented.png')`)
-
-![Location of `{python} img_id` within training data sample](`{python} os.path.join(output_dir, img_id + '_comparison.png')`){width="60%," fig-align="left"}
 :::
+
+Landmarks definition:
+**A** -- _tubercle piriformis_,
+**B** -- base of the _spina ischiadica_
+
+![Location of `{python} img_id` within training data sample](`{python} os.path.join(output_dir, img_id + '_comparison.png')`){fig-align="left" width=670}
