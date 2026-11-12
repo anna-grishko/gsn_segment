@@ -4,28 +4,25 @@ is a project to predict biological sex from the greater sciatic notch (GSN) from
 
 ## Installation
 
-You should have [Python](https://www.python.org/downloads/) installed and IDE ([Pycharm](https://www.jetbrains.com/pycharm/download/?section=windows) or [Visual Studio](https://code.visualstudio.com/Download)). From your IDE clone the project: https://github.com/anna-grishko/gsn_segment.git
+You should have [Python](https://www.python.org/downloads/) installed (you might consider [Conda](https://docs.conda.io/projects/conda/en/latest/index.html) distribution instead) and IDE ([Pycharm](https://www.jetbrains.com/pycharm/download/?section=windows) or [Visual Studio](https://code.visualstudio.com/Download)). From your IDE clone the project: [https://github.com/anna-grishko/gsn_segment.git](https://github.com/anna-grishko/gsn_segment.git)
 
-<p align="center">
-  <img src="figures/clone_proj.png" alt="framework" width="90%">
-</p> 
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) in the Terminal to install poetry manager.
+## Environment setup
+
+Dependencies and environments are managed with [pixi](https://pixi.prefix.dev/).
+
+Install pixi once (see the [installation guide](https://pixi.prefix.dev/latest/installation/)).
+
+Then from a repository root build the default environment and install project dependencies:
 
 ```bash
-pip install poetry
+pixi install
 ```
-With installed poetry call
+
+And run the application for thr sex estimation:
 
 ```bash
-poetry install
-```
-to install project dependencies.
-
-And run the script for thr sex estimation
-
-```bash
-poetry run python main.py
+pixi run start
 ```
 
 ## Introduction
@@ -34,7 +31,7 @@ The proposed automated workflow provides a reliable, objective, and population-i
 
 ## Workflow
 
-1) Run the main.py file
+1) Run the application
 2) Select a folder with your images of the GSN; select a folder where the results will be stored
 3) Press Start Batch Process
 4) Crop your images so the GSN is well-visible
