@@ -17,6 +17,9 @@ scikit-learn = "^1.8.0"
 seaborn = "^0.13.2"
 joblib = "^1.5.3"
 customtkinter = "^5.2.2"
+papermill = "^2.7.0"
+pyyaml = "^6.0.3"
+pytest-shutil = "^1.8.1"
 
 
 [build-system]

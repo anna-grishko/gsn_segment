@@ -1,4 +1,4 @@
-import os
+import os, shutil
 import subprocess
 import joblib
 import numpy as np
@@ -25,9 +25,9 @@ colors = {'F': '#F8766D', 'M': '#00BFC4', 1: '#F8766D', 0: '#00BFC4'}
 random_state = 42
 
 # Configuration
-FOLDER_TO_SAVE_RESULTS = 'data/segmented_curves_gui_output'
 SCALER_PATH = 'utils/scaler.save'
 CLASSIFIER_PATH = 'utils/the_model.save'
+TEMP_FOLDER = 'temp'
 
 # Set UI Theme
 ctk.set_appearance_mode("dark")
@@ -40,6 +40,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
         raise ValueError("No file path provided.")
 
     folder, file_name = os.path.split(file_path)
+    img_name = os.path.splitext(file_name)[0]
 
     # 1. Image Read and Preprocessing
     img = ImgProcessor.read(folder, file_name)
@@ -53,36 +54,32 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
                         img_contour.flipped_data['points'][1],
                         img_contour.flipped_data['curve'])
 
-    # 3. Save Plots (Simplified but functional)
-    new_subfolder = os.path.splitext(file_name)[0]
-    output_dir = os.path.join(base_output_folder, new_subfolder)
-    os.makedirs(output_dir, exist_ok=True)
-
+    # 3. Save Plots to TEMP folder
     # Save image and data files
     # img1 - save the original image
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plot_orig_image(ax, img_new.img)
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_original.png'),
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_original.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_original.eps'),
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_original.eps'),
                 format="eps", dpi=100, bbox_inches="tight", transparent=True)
     
 
     # img2 - save segmented image with contours and points A/B marked
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plot_orig_image(ax, img_new.img, contours=img_contour.contours, points=img_contour.points)
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.png'),
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_segmented.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.eps'),
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_segmented.eps'),
                 format="eps", dpi=100, bbox_inches="tight", transparent=True)
 
 
     # img3 - save the registered curve
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plot_registered_curve(ax, res, img_new.img.shape)
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.png'),
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.eps'),
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.eps'),
                 format="eps", dpi=600, bbox_inches="tight", transparent=True)
     
 
@@ -99,11 +96,13 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
 
     ### plot 2 PCs of original data with confidence ellipses and current datapoint
     fig = plt.figure(figsize=(15, 10), layout="constrained")
-    plot_data(fig, ef_coefs=coefs, colors=colors, sample_name=os.path.splitext(file_name)[0], random_state=random_state)
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_comparison.png'),
+    plot_data(fig, ef_coefs=coefs, colors=colors, sample_name=img_name, random_state=random_state)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_comparison.eps'),
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.eps'),
                 format="eps", dpi=100, bbox_inches="tight", transparent=True)
+    
+    plt.close('all')
 
     # 5. Prediction
     X = scaler.transform(coefs.reshape(1, -1))
@@ -116,14 +115,14 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     # Create quarto report
     command = [
         'quarto', 'render', 'report.qmd',
-        '-P', f'img_id:{os.path.splitext(file_name)[0]}',
+        '-P', f'img_id:{img_name}',
         '-P', f'pred:{pred_text}',
         '-P', f'prob_M:{y_prob_M*100:.2f}%',
         '-P', f'prob_F:{y_prob_F*100:.2f}%',
-        '-P', f'output_dir:figures/{os.path.splitext(file_name)[0]}',
+        '-P', f'output_dir:{TEMP_FOLDER}',
         '-M', f'datetime:{datetime.now().strftime("%Y:%m:%d %H:%M:%S")}',
         '-M', 'title:Report: sex prediction based on Greater Sciatic Notch shape',
-        '--output', f'report_{os.path.splitext(file_name)[0]}.pdf',
+        '--output', f'report_{img_name}.pdf',  ## quarto CLI cannot save outputs to absolute/relative paths, so we save to the current working directory and move it later
     ]
 
     try: 
@@ -131,10 +130,20 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
         result = subprocess.run(command, check=True)
 
     except Exception as e:
-        print(f"Error generating report for {os.path.splitext(file_name)[0]}")
+        print(f"Error generating report for {img_name}")
         print(e)
 
-    plt.close('all')
+
+    # Create output directory
+    output_dir = os.path.join(base_output_folder, img_name)
+    os.makedirs(output_dir, exist_ok=True)
+    # Move all generated images to the output directory
+    for ext in ['_original.png', '_original.eps', '_segmented.png', '_segmented.eps', '_registered.png', '_registered.eps', '_comparison.png', '_comparison.eps']:
+        src_file = os.path.join(TEMP_FOLDER, img_name + ext)
+        if os.path.exists(src_file):
+            shutil.move(src_file, os.path.join(output_dir, os.path.basename(src_file)))
+    # Move pdf report to the output directory
+    shutil.move(f'report_{img_name}.pdf', os.path.join(output_dir, f'report_{img_name}.pdf'))
     return pred_text, y_prob_M, y_prob_F, coefs
 
 
