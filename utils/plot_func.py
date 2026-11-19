@@ -152,11 +152,12 @@ def shape_from_PC(PC_value, PC_index, pca_class):
     # reconstruct EF coefficients from PCA
     X_reconstructed_PC = np.dot(X_PC, W) + pca_class.mean_
     # reconstruct shape coordinates from EF coefficients
-    shape_PC = iefourier(X_reconstructed_PC[0:n_components],  # A coefficients
-                         X_reconstructed_PC[n_components:2*n_components],  # B coefficients
-                         X_reconstructed_PC[2*n_components:3*n_components],  # C coefficients
-                         X_reconstructed_PC[3*n_components:4*n_components],  # D coefficients
-                         n_harmonics=n_components)
+    n_coefs = 7 # TODO standartize so any number of harmonics canm be used
+    shape_PC = iefourier(X_reconstructed_PC[0:n_coefs],  # A coefficients
+                         X_reconstructed_PC[n_coefs:2*n_coefs],  # B coefficients
+                         X_reconstructed_PC[2*n_coefs:3*n_coefs],  # C coefficients
+                         X_reconstructed_PC[3*n_coefs:4*n_coefs],  # D coefficients
+                         n_harmonics=n_coefs)
     
     return shape_PC
     
@@ -171,7 +172,7 @@ def plot_data(fig, ef_coefs, colors, sample_name, random_state):
     fig : matplotlib.figure.Figure
         The figure object to plot on.
     ef_coefs : numpy.ndarray
-        The Elliptic Fourier coefficients of the current sample.
+        The Elliptic Fourier coefficients of the current sample, size (28,) = 7 harmonics.
     colors : dict
         A palette mapping 'F' and 'M' to their respective colors for plotting.
     sample_name : str
@@ -186,7 +187,8 @@ def plot_data(fig, ef_coefs, colors, sample_name, random_state):
     """
     ## read training data
     EF_data = pd.read_csv('data/pred_ef.csv', header=0)
-    dataset = EF_data.iloc[:, np.r_[1:29]]  # elliptic Fourier coefficients
+    # TODO standartize so any number of harmonics canm be used
+    dataset = EF_data.iloc[:, np.r_[1:29]]  # elliptic Fourier coefficients (7 harmonics)
     pca = make_pipeline(PCA(n_components=2, random_state=random_state))
     y = EF_data[["sex"]].iloc[:, 0] 
     pca.fit(dataset, y)
