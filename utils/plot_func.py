@@ -100,7 +100,7 @@ def plot_registered_curve(res, image_shape, ax=None):
     Parameters
     ----------
     res : numpy.ndarray
-        The registered curve coordinates.
+        The registered curve coordinates, array of [x,y] arrays.
     image_shape : tuple
         The shape of the image.
     ax : matplotlib.axes.Axes, optional
@@ -116,7 +116,8 @@ def plot_registered_curve(res, image_shape, ax=None):
             ax = plt.gca()  # get current axes if None provided
     
     ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
-    ax.set_box_aspect(image_shape[0] / image_shape[1])
+    # set aspect ratio  so image is not distorted
+    ax.set_box_aspect(image_shape[0] / image_shape[1]) 
     ax.set_ylim(ymin=0)
     ax.axis('equal')
 
@@ -126,35 +127,80 @@ def plot_registered_curve(res, image_shape, ax=None):
 ## reverse transform min and max PCs
 def shape_from_PC(PC_value, PC_index, pca_class):
     """
-    Helper function. Reconstruct the shape from a given principal component value from the pca class.
+    Reconstruct the shape from Elliptic Fourier coefficients
+    for a given principal component value from the pca class.
+
+    Parameters
+    ----------
+    PC_value : float
+        The value of the principal component to reconstruct.
+    PC_index : int
+        The index of the principal component to reconstruct.
+    pca_class : sklearn.decomposition.PCA
+        The PCA class used for the transformation.
+
+    Returns
+    -------
+    shape_PC : dict
+        The reconstructed shape as a dictionary of x and y coordinates.
     """
+
     W = pca_class.components_  # rotation matrix
     n_components = pca_class.n_components_
     X_PC = np.zeros(n_components)
     X_PC[PC_index] = PC_value
+    # reconstruct EF coefficients from PCA
     X_reconstructed_PC = np.dot(X_PC, W) + pca_class.mean_
-    shape_PC = iefourier(X_reconstructed_PC[0:n_components],
-                         X_reconstructed_PC[n_components:2*n_components],
-                         X_reconstructed_PC[2*n_components:3*n_components],
-                         X_reconstructed_PC[3*n_components:4*n_components], n_harmonics=n_components)
+    # reconstruct shape coordinates from EF coefficients
+    shape_PC = iefourier(X_reconstructed_PC[0:n_components],  # A coefficients
+                         X_reconstructed_PC[n_components:2*n_components],  # B coefficients
+                         X_reconstructed_PC[2*n_components:3*n_components],  # C coefficients
+                         X_reconstructed_PC[3*n_components:4*n_components],  # D coefficients
+                         n_harmonics=n_components)
+    
     return shape_PC
     
 def plot_data(fig, ef_coefs, colors, sample_name, random_state):
+    """
+    Plot the first two PCs of the Elliptic Fourier coefficients from the training dataset pred_ef.csv
+    with confidence ellipses separate for males and females. Adds current datapoint to the plot as a black X marker.
+    Also plots the shapes corresponding to the 0.01 and 0.99 quantiles of the first two PCs alongside x and y axes.
+
+    Parameters
+    ---------- 
+    fig : matplotlib.figure.Figure
+        The figure object to plot on.
+    ef_coefs : numpy.ndarray
+        The Elliptic Fourier coefficients of the current sample.
+    colors : dict
+        A palette mapping 'F' and 'M' to their respective colors for plotting.
+    sample_name : str
+        The name of the current sample to add to a legend.
+    random_state : int
+        The random state for reproducibility.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The figure object with the plotted data.
+    """
     ## read training data
     EF_data = pd.read_csv('data/pred_ef.csv', header=0)
     dataset = EF_data.iloc[:, np.r_[1:29]]  # elliptic Fourier coefficients
-    pca = make_pipeline(PCA(n_components=7, random_state=random_state))
+    pca = make_pipeline(PCA(n_components=2, random_state=random_state))
     y = EF_data[["sex"]].iloc[:, 0] 
     pca.fit(dataset, y)
     X_embedded = pca.transform(dataset)
+    # prepare data for ellipces plotting
     X_female = X_embedded[y == 'F']
     X_male = X_embedded[y == 'M']
+    # PCA transform of the current sample
     new_data_embedded = pca.transform(ef_coefs.reshape(1, -1))
     ## reverse transform min and max PCs
-    # PC1
+    # PC1 (index=0)
     shape_PC1_max = shape_from_PC(np.quantile(X_embedded[:, 0], 0.99), 0, pca.named_steps['pca'])
     shape_PC1_min = shape_from_PC(np.quantile(X_embedded[:, 0], 0.01), 0, pca.named_steps['pca'])
-    # PC2
+    # PC2 (index=1)
     shape_PC2_max = shape_from_PC(np.quantile(X_embedded[:, 1], 0.99), 1, pca.named_steps['pca'])
     shape_PC2_min = shape_from_PC(np.quantile(X_embedded[:, 1], 0.01), 1, pca.named_steps['pca'])
 
@@ -174,6 +220,7 @@ def plot_data(fig, ef_coefs, colors, sample_name, random_state):
     ax3.plot(shape_PC2_min['x'], shape_PC2_min['y'], color='black')
     ax3.axis("off")
 
+    # plot datapoints from the training sample
     sns.scatterplot(x=X_embedded[:, 0], y=X_embedded[:, 1], s=200,
                     hue=y, hue_order=['F', 'M'], palette=colors, alpha=0.7, ax=ax1)
     # Add confidence ellipses
@@ -185,8 +232,12 @@ def plot_data(fig, ef_coefs, colors, sample_name, random_state):
                       center_kwargs={'color': colors['M'], 's': 200, 'marker': '+', 'linewidth': 3})
     ax1.set_xlabel(f"PC 1 ({pca.named_steps.pca.explained_variance_ratio_[0] * 100:.2f}%)", fontsize=22)
     ax1.set_ylabel(f"PC 2 ({pca.named_steps.pca.explained_variance_ratio_[1] * 100:.2f}%)", fontsize=22)
+    # plot the current sample as a black X marker
     sns.scatterplot(x=new_data_embedded[:, 0], y=new_data_embedded[:, 1], s=300,
                     color='black', marker='X', label=sample_name, ax=ax1)
     ax1.legend(fontsize=20)
     ax1.tick_params(axis="x", labelsize=15)
     ax1.tick_params(axis="y", labelsize=15)
+
+    return fig
+

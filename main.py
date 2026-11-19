@@ -56,31 +56,31 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
 
     # 3. Save Plots to TEMP folder
     # Save image and data files
-    # img1 - save the original image
+    # img1 - the original image
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plot_orig_image(img_new.img, ax)
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_original.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_original.eps'),
-                format="eps", dpi=100, bbox_inches="tight", transparent=True)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_original.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
     
 
-    # img2 - save segmented image with contours and points A/B marked
+    # img2 - segmented image with contours and points A/B marked
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plot_orig_image(img_new.img, ax, contours=img_contour.contours, points=img_contour.points)
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_segmented.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_segmented.eps'),
-                format="eps", dpi=100, bbox_inches="tight", transparent=True)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_segmented.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
 
 
-    # img3 - save the registered curve
+    # img3 - the registered curve
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     plot_registered_curve(res, img_new.img.shape, ax)
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.eps'),
-                format="eps", dpi=600, bbox_inches="tight", transparent=True)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
     
 
     # 4. Feature Extraction
@@ -94,13 +94,14 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
 
     coefs = ef_coefs(outline, n_harmonics=7)
 
-    ### plot 2 PCs of original data with confidence ellipses and current datapoint
+    ### plot first two PCs of the original data with confidence ellipses, current datapoint and
+    # shapes corresponding to the 0.01 and 0.99 quantiles of the first two PCs
     fig = plt.figure(figsize=(15, 10), layout="constrained")
     plot_data(fig, ef_coefs=coefs, colors=colors, sample_name=img_name, random_state=random_state)
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.eps'),
-                format="eps", dpi=100, bbox_inches="tight", transparent=True)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
     
     plt.close('all')
 
@@ -138,7 +139,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     output_dir = os.path.join(base_output_folder, img_name)
     os.makedirs(output_dir, exist_ok=True)
     # Move all generated images to the output directory
-    for ext in ['_original.png', '_original.eps', '_segmented.png', '_segmented.eps', '_registered.png', '_registered.eps', '_comparison.png', '_comparison.eps']:
+    for ext in ['_original.png', '_original.svg', '_segmented.png', '_segmented.svg', '_registered.png', '_registered.svg', '_comparison.png', '_comparison.svg']:
         src_file = os.path.join(TEMP_FOLDER, img_name + ext)
         if os.path.exists(src_file):
             shutil.move(src_file, os.path.join(output_dir, os.path.basename(src_file)))
