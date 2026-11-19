@@ -24,7 +24,7 @@ pixi install
 And run the application for thr sex estimation:
 
 ```bash
-pixi run start
+pixi run application
 ```
 
 ## Introduction

@@ -36,5 +36,5 @@ default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tool.pixi.tasks]
-start = "python main.py"
+application = "python main.py"
 test = "pytest"
