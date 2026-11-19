@@ -6,6 +6,8 @@ is a project to predict biological sex from the greater sciatic notch (GSN) from
 
 You should have [Python](https://www.python.org/downloads/) installed (you might consider [Conda](https://docs.conda.io/projects/conda/en/latest/index.html) distribution instead) and IDE ([Pycharm](https://www.jetbrains.com/pycharm/download/?section=windows) or [Visual Studio](https://code.visualstudio.com/Download)). From your IDE clone the project: [https://github.com/anna-grishko/gsn_segment.git](https://github.com/anna-grishko/gsn_segment.git)
 
+To create pdf reports the application requires [Quarto](https://quarto.org/docs/download/) installed.
+
 
 ## Environment setup
 
