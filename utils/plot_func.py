@@ -10,48 +10,124 @@ from sklearn.decomposition import PCA
 
 from utils.ef_functions import iefourier
 
-def draw_conf_ellipse(x, y, ax, color, conf=0.95, size=100, plot_center=True, linestyle='solid'):
-    z_quant = scipy.stats.norm.ppf(conf + (1 - conf) / 2, loc=0, scale=1)
+def draw_conf_ellipse(x, y, ax=None, conf=0.95, plot_center=True, ellipse_kwargs={}, center_kwargs={}):
+    """
+    Draw normal confidence ellipse for given x and y data points.
+    
+    Parameters
+    ----------
+    x : array-like
+        X coordinates of the data points.
+    y : array-like
+        Y coordinates of the data points.
+    ax : matplotlib.axes.Axes
+        Axis object on which to draw the ellipse.
+    conf : float
+        Value from 0 to 1 indicating the bivariate normal coverage level.
+    plot_center : bool
+        Whether to plot the center point of the ellipse.
+    ellipse_kwargs : dict
+        Keyword arguments for the ellipse line style (e.g., 'color', 'linewidth', 'linestyle').
+    center_kwargs : dict
+        Keyword arguments for the center point style (e.g., 'color', 's', 'marker').
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis object with the drawn ellipse and center point (if specified).
+    """
+
+    if ax is None:
+        ax = plt.gca()  # get current axes if None provided
+    
+    ellipse_scale = np.sqrt(scipy.stats.chi2.ppf(conf, df=2))
     cov = np.cov(x, y)
     val, rot = np.linalg.eig(cov)
     center = np.mean([x, y], axis=1)[:, None]
 
-    # theta = np.degrees(np.arctan2(*rot[:, 0][::-1]))
-    # # Width and height are "full" widths, not radius
-    # width, height = 2 * z_quant * np.sqrt(val)
-    # ellip = Ellipse(xy=center, width=width, height=height, angle=theta)
-    # ax.add_artist(ellip)
-
     t = np.linspace(0, 2.0 * np.pi, 1000)
     xy = np.stack((np.cos(t), np.sin(t)), axis=-1)
-    ax.plot(*(rot @ (z_quant * np.sqrt(val) * xy).T + center), c=color, linestyle=linestyle)
+    ax.plot(*(rot @ (ellipse_scale * np.sqrt(val) * xy).T + center), **ellipse_kwargs)
     if plot_center:
-        ax.scatter(center[0], center[1], c=color, s=size, marker='+')
+        ax.scatter(center[0], center[1], **center_kwargs)
+
+    return ax
 
 
-def plot_orig_image(ax, image, contours=None, points=None):
+def plot_orig_image(image, ax=None, contours=None, points=None):
+    """
+    Plot the original image with optional contours and points.
+
+    Parameters
+    ----------
+    image : 
+        The image to plot.
+    ax : matplotlib.axes.Axes
+        Axis object on which to draw the ellipse.
+    contours : list of numpy.ndarray, optional
+        List of contours to plot.
+    points : list of numpy.ndarray, optional
+        List of points to plot.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis object with the plotted image, contours, and points.
+    """
+
+    if ax is None:
+        ax = plt.gca()  # get current axes if None provided
+
     ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
     if contours is not None:
         for contour in contours:
             ax.plot(contour[:, 1], contour[:, 0], color='w', linewidth=3, markersize=12, zorder=1)
     if points is not None:
         ax.scatter(points[0][1], points[0][0], s=150, marker='X', color='red', zorder=2)
-        ax.scatter(points[1][1], points[1][0], s=150, marker='X', color='red', zorder=3)
+        ax.scatter(points[1][1], points[1][0], s=150, marker='X', color='red', zorder=2)
         ax.annotate("A", (points[0][1], points[0][0]), xytext=(10, 10),
                     textcoords='offset points', color='red', fontsize=50)
         ax.annotate("B", (points[1][1], points[1][0]), xytext=(10, 10),
                     textcoords='offset points', color='red', fontsize=50)
 
+    return ax
 
-def plot_registered_curve(ax, res, image_shape):
+
+def plot_registered_curve(res, image_shape, ax=None):
+    """
+    Plot the registered curve.
+
+    Parameters
+    ----------
+    res : numpy.ndarray
+        The registered curve coordinates.
+    image_shape : tuple
+        The shape of the image.
+    ax : matplotlib.axes.Axes, optional
+        Axis object on which to draw the curve.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The axis object with the plotted curve.
+    """
+
+    if ax is None:
+            ax = plt.gca()  # get current axes if None provided
+    
     ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
     ax.set_box_aspect(image_shape[0] / image_shape[1])
     ax.set_ylim(ymin=0)
     ax.axis('equal')
 
+    return ax
+
 
 ## reverse transform min and max PCs
 def shape_from_PC(PC_value, PC_index, pca_class):
+    """
+    Helper function. Reconstruct the shape from a given principal component value from the pca class.
+    """
     W = pca_class.components_  # rotation matrix
     n_components = pca_class.n_components_
     X_PC = np.zeros(n_components)
@@ -89,20 +165,24 @@ def plot_data(fig, ef_coefs, colors, sample_name, random_state):
     ax4 = fig.add_subplot(gs[4, 4])  # PC1 max
     ax5 = fig.add_subplot(gs[4, 1])  # PC1 min
 
-    ax4.plot(shape_PC1_max['x'], shape_PC1_max['y'], color='black', linewidth=1)
+    ax4.plot(shape_PC1_max['x'], shape_PC1_max['y'], color='black')
     ax4.axis("off")
-    ax5.plot(shape_PC1_min['x'], shape_PC1_min['y'], color='black', linewidth=1)
+    ax5.plot(shape_PC1_min['x'], shape_PC1_min['y'], color='black')
     ax5.axis("off")
-    ax2.plot(shape_PC2_max['x'], shape_PC2_max['y'], color='black', linewidth=1)
+    ax2.plot(shape_PC2_max['x'], shape_PC2_max['y'], color='black')
     ax2.axis("off")
-    ax3.plot(shape_PC2_min['x'], shape_PC2_min['y'], color='black', linewidth=1)
+    ax3.plot(shape_PC2_min['x'], shape_PC2_min['y'], color='black')
     ax3.axis("off")
 
     sns.scatterplot(x=X_embedded[:, 0], y=X_embedded[:, 1], s=200,
-                    hue=y, hue_order=['F', 'M'], palette=colors, ax=ax1)
+                    hue=y, hue_order=['F', 'M'], palette=colors, alpha=0.7, ax=ax1)
     # Add confidence ellipses
-    draw_conf_ellipse(X_female[:, 0], X_female[:, 1], color=colors['F'], ax=ax1)
-    draw_conf_ellipse(X_male[:, 0], X_male[:, 1], color=colors['M'], ax=ax1)
+    draw_conf_ellipse(X_female[:, 0], X_female[:, 1], ax=ax1,
+                      ellipse_kwargs={'color': colors['F'], 'linewidth': 2},
+                      center_kwargs={'color': colors['F'], 's': 200, 'marker': '+', 'linewidth': 3})
+    draw_conf_ellipse(X_male[:, 0], X_male[:, 1], ax=ax1,
+                      ellipse_kwargs={'color': colors['M'], 'linewidth': 2},
+                      center_kwargs={'color': colors['M'], 's': 200, 'marker': '+', 'linewidth': 3})
     ax1.set_xlabel(f"PC 1 ({pca.named_steps.pca.explained_variance_ratio_[0] * 100:.2f}%)", fontsize=22)
     ax1.set_ylabel(f"PC 2 ({pca.named_steps.pca.explained_variance_ratio_[1] * 100:.2f}%)", fontsize=22)
     sns.scatterplot(x=new_data_embedded[:, 0], y=new_data_embedded[:, 1], s=300,
