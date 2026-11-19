@@ -1,1 +1,6 @@
 .vscode/settings.json
+*.pyc
+.quarto
+# pixi environments
+.pixi/*
+!.pixi/config.toml

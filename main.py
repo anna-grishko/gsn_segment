@@ -1,25 +1,33 @@
-import os
+import os, shutil
+import subprocess
 import joblib
 import numpy as np
 import pandas as pd
-import cv2
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import threading
 from datetime import datetime
 import matplotlib
+from sklearn.pipeline import make_pipeline
 matplotlib.use('Agg')  # use a non-interactive backend Agg (Anti-Grain Geometry)
 import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 # --- Import custom modules ---
 from utils.curve_fitting_utils import sample_equidist
 from utils.ef_functions import ef_coefs
 from utils.img_preproc_utils import ImgProcessor, ContourGSN, transform_gsn
+from utils.plot_func import plot_orig_image, plot_registered_curve, plot_data
+
+sns.set_theme(style="ticks")
+colors = {'F': '#F8766D', 'M': '#00BFC4', 1: '#F8766D', 0: '#00BFC4'}
+random_state = 42
 
 # Configuration
-FOLDER_TO_SAVE_RESULTS = 'data/segmented_curves_gui_output'
 SCALER_PATH = 'utils/scaler.save'
 CLASSIFIER_PATH = 'utils/the_model.save'
+TEMP_FOLDER = 'temp'
 
 # Set UI Theme
 ctk.set_appearance_mode("dark")
@@ -32,6 +40,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
         raise ValueError("No file path provided.")
 
     folder, file_name = os.path.split(file_path)
+    img_name = os.path.splitext(file_name)[0]
 
     # 1. Image Read and Preprocessing
     img = ImgProcessor.read(folder, file_name)
@@ -45,38 +54,34 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
                         img_contour.flipped_data['points'][1],
                         img_contour.flipped_data['curve'])
 
-    # 3. Save Plots (Simplified but functional)
-    new_subfolder = os.path.splitext(file_name)[0]
-    output_dir = os.path.join(base_output_folder, new_subfolder)
-    os.makedirs(output_dir, exist_ok=True)
-
+    # 3. Save Plots to TEMP folder
     # Save image and data files
+    # img1 - the original image
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
-    for contour in img_contour.contours:
-        ax.plot(contour[:, 1], contour[:, 0], color='w', linewidth=3, markersize=12, zorder=1)
-    ax.scatter(img_contour.points[0][1], img_contour.points[0][0], s=120, marker='X', color='red', zorder=2)
-    ax.scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
-    ax.annotate("A", (img_contour.points[0][1], img_contour.points[0][0]), xytext=(10, 10), textcoords='offset points',
-                color='red', fontsize=50)
-    ax.annotate("B", (img_contour.points[1][1], img_contour.points[1][0]), xytext=(10, 10), textcoords='offset points',
-                color='red', fontsize=50)
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.png'),
+    plot_orig_image(img_new.img, ax)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_original.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_segmented.eps'),
-                format="eps", dpi=100, bbox_inches="tight", transparent=True)
-    plt.close(fig)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_original.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
+    
 
+    # img2 - segmented image with contours and points A/B marked
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
-    ax.set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
-    ax.set_ylim(ymin=0)
-    ax.axis('equal')
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.png'),
+    plot_orig_image(img_new.img, ax, contours=img_contour.contours, points=img_contour.points)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_segmented.png'),
                 bbox_inches='tight')
-    plt.savefig(os.path.join(output_dir, os.path.splitext(file_name)[0] + '_registered.eps'),
-                format="eps", dpi=600, bbox_inches="tight", transparent=True)
-    plt.close(fig)  # CRITICAL: Close plot to free memory during batch
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_segmented.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
+
+
+    # img3 - the registered curve
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    plot_registered_curve(res, img_new.img.shape, ax)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.png'),
+                bbox_inches='tight')
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
+    
 
     # 4. Feature Extraction
     coordinates = sample_equidist(res, 100)
@@ -89,13 +94,57 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
 
     coefs = ef_coefs(outline, n_harmonics=7)
 
+    ### plot first two PCs of the original data with confidence ellipses, current datapoint and
+    # shapes corresponding to the 0.01 and 0.99 quantiles of the first two PCs
+    fig = plt.figure(figsize=(15, 10), layout="constrained")
+    plot_data(fig, ef_coefs=coefs, colors=colors, sample_name=img_name, random_state=random_state)
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.png'),
+                bbox_inches='tight')
+    plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.svg'),
+                format="svg", dpi=600, bbox_inches="tight", transparent=True)
+    
+    plt.close('all')
+
     # 5. Prediction
     X = scaler.transform(coefs.reshape(1, -1))
     y_pred = classifier.predict(X)[0]
     y_prob_M = classifier.predict_proba(X)[0, 0]
     y_prob_F = classifier.predict_proba(X)[0, 1]
-
     pred_text = "Female" if y_pred == 1 else "Male"
+
+
+    # Create quarto report
+    command = [
+        'quarto', 'render', 'report.qmd',
+        '-P', f'img_id:{img_name}',
+        '-P', f'pred:{pred_text}',
+        '-P', f'prob_M:{y_prob_M*100:.2f}%',
+        '-P', f'prob_F:{y_prob_F*100:.2f}%',
+        '-P', f'output_dir:{TEMP_FOLDER}',
+        '-M', f'datetime:{datetime.now().strftime("%Y:%m:%d %H:%M:%S")}',
+        '-M', 'title:Report: sex prediction based on Greater Sciatic Notch shape',
+        '--output', f'report_{img_name}.pdf',  ## quarto CLI cannot save outputs to absolute/relative paths, so we save to the current working directory and move it later
+    ]
+
+    try: 
+        print("Running Command", ' '.join(command))
+        result = subprocess.run(command, check=True)
+
+    except Exception as e:
+        print(f"Error generating report for {img_name}")
+        print(e)
+
+
+    # Create output directory
+    output_dir = os.path.join(base_output_folder, img_name)
+    os.makedirs(output_dir, exist_ok=True)
+    # Move all generated images to the output directory
+    for ext in ['_original.png', '_original.svg', '_segmented.png', '_segmented.svg', '_registered.png', '_registered.svg', '_comparison.png', '_comparison.svg']:
+        src_file = os.path.join(TEMP_FOLDER, img_name + ext)
+        if os.path.exists(src_file):
+            shutil.move(src_file, os.path.join(output_dir, os.path.basename(src_file)))
+    # Move pdf report to the output directory
+    shutil.move(f'report_{img_name}.pdf', os.path.join(output_dir, f'report_{img_name}.pdf'))
     return pred_text, y_prob_M, y_prob_F, coefs
 
 
@@ -228,7 +277,6 @@ class App(ctk.CTk):
 
                 # Predict (Now passing the output folder)
                 pred, prob_m, prob_f, coefs = process_image_and_predict(full_path, scaler, classifier, self.output_folder)
-
                 # UI Update (using after() to be thread-safe)
                 color = "#5dade2" if pred == "Female" else "#ec7063"
                 status = f"Processing {i + 1} of {len(files)}"
@@ -247,7 +295,7 @@ class App(ctk.CTk):
                        lambda: messagebox.showinfo("Complete", f"Processed {len(files)} files.\nSaved to: {csv_path}"))
 
         except Exception as e:
-            self.after(0, lambda: messagebox.showerror("Runtime Error", f"An error occurred: {str(e)}"))
+            self.after(0, lambda e=e: messagebox.showerror("Runtime Error", f"An error occurred: {str(e)}"))
 
         finally:
             self.after(0, self.reset_buttons)
