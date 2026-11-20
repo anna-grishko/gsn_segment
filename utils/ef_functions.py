@@ -11,7 +11,23 @@ import numpy as np
 # outline = pd.concat([coordinates, new_dat], axis=0, ignore_index=True)
 
 
-def ef_coefs(outline, n_harmonics, scale=False):
+def ef_coefs(outline, n_harmonics):
+    """
+    Calculate Elliptic Fourier coefficients for n harmonics for a given closed outline.
+
+    Parameters
+    ----------
+    outline : array
+        array of x,y coordinates of the outline.
+    n_harmonics : int
+        number of harmonics.
+    
+    Returns
+    -------
+    ndarray
+        array of EF coefficients appended in this order: A, B, C, D, each n times.
+    """
+
     n_points = outline.shape[0]
 
     outline_shifted = np.roll(outline[:, ], 2)
@@ -46,9 +62,41 @@ def ef_coefs(outline, n_harmonics, scale=False):
 # cn = np.array([-0.08655806, -0.08009734, -0.02140565,  0.00487414, -0.01000876, -0.00490515, -0.00035708])
 # dn = np.array([0.28939113, -0.0316743, -0.01015062,  0.00158739, -0.00102937, 0.00123179, -0.00193434])
 def iefourier(an, bn, cn, dn, n_harmonics, n_points=100, a0=0, c0=0):
+    """
+    Perform inverse elliptic Fourier transformation, e.g.
+    reconstructs a closed 2D contour from its harmonic EF coefficients.
+
+    Parameters
+    ----------
+    an : ndarray
+        A elliptic Fourier coefficients.
+    bn : ndarray
+        B elliptic Fourier coefficients.
+    cn : ndarray
+        C elliptic Fourier coefficients.
+    dn : ndarray
+        D elliptic Fourier coefficients.
+    n_harmonics : int
+        numebr of harmonics to use to reconstruc the outline.
+    n_points : int
+        number of x,y coordinates on the reconstructed outline.
+    a0 : float
+        x coordinate of the  centroid of the configuration.
+    c0 : float
+        y coordinate of the centroid of the configuration.
+
+    Returns
+    -------
+    x : ndarray
+        x coordinates of the contour reconstruction.
+    y : ndarray
+        y coordinates of the contour reconstruction.
+
+    """
+
     theta = np.linspace(0, 2*np.pi, n_points)
-    harm_x = np.linspace(0, 0, n_points)
-    harm_y = np.linspace(0, 0, n_points)
+    harm_x = np.zeros(n_points)
+    harm_y = np.zeros(n_points)
     n_harmonics = n_harmonics if an.__len__() > n_harmonics else an.__len__()
     for harmonic in range(n_harmonics):
         harm_x_i = an[harmonic] * np.cos((harmonic+1) * theta) + bn[harmonic] * np.sin((harmonic+1) * theta)
