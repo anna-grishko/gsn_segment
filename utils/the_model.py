@@ -18,7 +18,7 @@ random_state = 123
 class_dict = {'F': 1, 'M': 0}
 
 # read all data
-folder_main = '../data/segmented_curves/final'
+folder_main = 'data/segmented_curves/final'
 sup_folders = os.listdir(folder_main)
 # read data into a table
 data = []
@@ -27,11 +27,11 @@ for folder in sup_folders:
     for specimen in sub_folders:
         # read registered GSN curves
         semilandmarks_path = os.path.join(folder_main, folder, specimen, 'gsn_curve_registered.csv')
-        semilandmarks = pd.read_csv(semilandmarks_path)
-        if semilandmarks.values[0, 1] > semilandmarks.values[-1, 1]:
-            semilandmarks = semilandmarks.loc[::-1, :].reset_index(drop=True)
+        semilandmarks = np.genfromtxt(semilandmarks_path, delimiter=',', skip_header=0)
+        if semilandmarks[0, 1] > semilandmarks[-1, 1]:
+            semilandmarks = semilandmarks[::-1, :]
 
-        coordinates = sample_equidist(semilandmarks.to_numpy(), 100)
+        coordinates = sample_equidist(semilandmarks, 100)
         # close the outline
         new_dat = np.array([np.zeros(coordinates.shape[0]), coordinates[::-1, 1]]).T
         new_dat = new_dat[1:(coordinates.shape[0] - 2), :]  # remove first and last points (duplicities)
