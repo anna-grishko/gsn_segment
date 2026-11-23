@@ -35,34 +35,34 @@ for file_name in imgs:
     new_subfolder = os.path.splitext(file_name)[0]
     if not os.path.exists(os.path.join(new_folder, new_subfolder)):
         os.makedirs(os.path.join(new_folder, new_subfolder))
-    cv2.imwrite(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_gsn_img.png'),
-                img_contour.flipped_data['img'])
+    # cv2.imwrite(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_img.png'),
+    #             img_contour.flipped_data['img'])
     np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_contour.csv'), img_contour.flipped_data['contour'], delimiter=",")
     np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_curve.csv'), img_contour.flipped_data['curve'], delimiter=",")
     np.savetxt(os.path.join(new_folder, new_subfolder, 'gsn_curve_registered.csv'), res, delimiter=",")
 
 
-    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
-    for contour in img_contour.contours:
-        ax.plot(contour[:, 1], contour[:, 0], linewidth=3, markersize=12, zorder=1)
-    ax.scatter(img_contour.points[0][1], img_contour.points[0][0], s=120, marker='X', color='red', zorder=2)
-    ax.scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
-    ax.annotate("A", (img_contour.points[0][1], img_contour.points[0][0]), xytext=(10, 10), textcoords='offset points', color='red', fontsize=50)
-    ax.annotate("B", (img_contour.points[1][1], img_contour.points[1][0]), xytext=(10, 10), textcoords='offset points', color='red', fontsize=50)
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_segmented.png'),
-                bbox_inches='tight')
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_segmented.eps'),
-                format="eps", dpi=100, bbox_inches="tight", transparent=True)
-    plt.close()
+    # fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    # ax.imshow(cv2.cvtColor(img_new.img, cv2.COLOR_BGR2RGB), cmap=plt.cm.Spectral)
+    # for contour in img_contour.contours:
+    #     ax.plot(contour[:, 1], contour[:, 0], linewidth=3, markersize=12, zorder=1)
+    # ax.scatter(img_contour.points[0][1], img_contour.points[0][0], s=120, marker='X', color='red', zorder=2)
+    # ax.scatter(img_contour.points[1][1], img_contour.points[1][0], s=120, marker='X', color='red', zorder=3)
+    # ax.annotate("A", (img_contour.points[0][1], img_contour.points[0][0]), xytext=(10, 10), textcoords='offset points', color='red', fontsize=50)
+    # ax.annotate("B", (img_contour.points[1][1], img_contour.points[1][0]), xytext=(10, 10), textcoords='offset points', color='red', fontsize=50)
+    # plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_segmented.png'),
+    #             bbox_inches='tight')
+    # plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_segmented.eps'),
+    #             format="eps", dpi=100, bbox_inches="tight", transparent=True)
+    # plt.close()
 
-    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
-    ax.set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
-    ax.set_ylim(ymin=0)
-    ax.axis('equal')
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_registered.png'),
-                bbox_inches='tight')
-    plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_registered.eps'),
-                format="eps", dpi=600, bbox_inches="tight", transparent=True)
-    plt.close()
+    # fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    # ax.plot(res[:, 1], res[:, 0], '-r', linewidth=3)
+    # ax.set_box_aspect(masked_img['mask'].shape[0] / masked_img['mask'].shape[1])
+    # ax.set_ylim(ymin=0)
+    # ax.axis('equal')
+    # plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_registered.png'),
+    #             bbox_inches='tight')
+    # plt.savefig(os.path.join(new_folder, new_subfolder, os.path.splitext(file_name)[0] + '_registered.eps'),
+    #             format="eps", dpi=600, bbox_inches="tight", transparent=True)
+    # plt.close()
