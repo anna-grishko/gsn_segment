@@ -1,6 +1,6 @@
+import warnings
 import numpy as np
 
-# Get equidistant sampled landmarks
 def sample_equidist(coords: np.ndarray, n=20) -> np.ndarray:
     """
     Sample n equidistant points from the given coordinates of an open contour.
@@ -18,8 +18,29 @@ def sample_equidist(coords: np.ndarray, n=20) -> np.ndarray:
         numpy array of x,y coordinates of sampled points
     """
 
-    # sample at least 3 points; cannot sample more points than there are in array
-    n = np.clip(n, 3, len(coords))
+    if len(coords) <= 3:
+        warnings.warn(
+            f"`coords` contains only {len(coords)} point(s); returning a copy as-is.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return coords.copy()
+
+    if n < 3:
+        warnings.warn(
+            f"Requested n={n} is less than 3; clamping n to 3.",
+            UserWarning,
+            stacklevel=2,
+        )
+        n = 3  # sample at least 3 points
+    elif n > len(coords):
+        warnings.warn(
+            f"Requested n={n} exceeds number of available coordinates ({len(coords)}); returning copy as-is.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return coords.copy()
+
     #  Calculate Euclidean distance between consecutive points
     diffs = np.diff(coords, axis=0)
     segment_lengths = np.hypot(diffs[:, 0], diffs[:, 1])
