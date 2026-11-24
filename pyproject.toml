@@ -8,12 +8,6 @@ dependencies = [
     "customtkinter>=5.2.2,<6.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-shutil>=1.8.1,<2.0",
-]
-
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["win-64"]
@@ -35,8 +29,11 @@ jupyter = ">=1.1.1,<2"
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
-dev = { features = ["dev"], solve-group = "default" }
+dev = ["test"]
 
 [tool.pixi.tasks]
 application = "python main.py"
 test = "pytest"
+
+[tool.pixi.feature.test.dependencies]
+pytest = ">=9.2.0,<10"
