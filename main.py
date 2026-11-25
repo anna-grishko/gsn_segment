@@ -92,7 +92,8 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     new_dat = new_dat[1:(coordinates.shape[0] - 2), :]
     outline = np.concatenate((coordinates, new_dat), axis=0)
 
-    coefs = ef_coefs(outline, n_harmonics=7)
+    an, bn, cn, dn = ef_coefs(outline, n_harmonics=7)
+    coefs = np.concatenate([an, bn, cn, dn])
 
     ### plot first two PCs of the original data with confidence ellipses, current datapoint and
     # shapes corresponding to the 0.01 and 0.99 quantiles of the first two PCs

@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 
 # folder = os.path.join('..', 'data', 'segmented_curves', 'final', 'Maxwell')
@@ -11,50 +12,71 @@ import numpy as np
 # outline = pd.concat([coordinates, new_dat], axis=0, ignore_index=True)
 
 
-def ef_coefs(outline, n_harmonics):
+def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
     """
     Calculate Elliptic Fourier coefficients for n harmonics for a given closed outline.
 
     Parameters
     ----------
-    outline : array
-        array of x,y coordinates of the outline.
+    outline : np.ndarray
+        (N, 2) array of closed outline coordinates ordered as image coordinates (row, col) / (y, x).
     n_harmonics : int
         number of harmonics.
     
     Returns
     -------
-    ndarray
-        array of EF coefficients appended in this order: A, B, C, D, each n times.
+    np.ndarray
+        1D array of EF coefficients appended in this order: [A_1..A_n, B_1..B_n, C_1..C_n, D_1..D_n].
     """
+    outline = np.asarray(outline, dtype=float)
 
-    n_points = outline.shape[0]
+    # Remove trailing duplicate vertex if the outline is already closed
+    if len(outline) > 1 and np.allclose(outline[0], outline[-1]):
+        outline = outline[:-1]
 
-    outline_shifted = np.roll(outline[:, ], 2)
-    dx = outline[:, 1] - outline_shifted[:, 1]
-    dy = outline[:, 0] - outline_shifted[:, 0]
-    dt = np.sqrt(np.square(dx) + np.square(dy))
+    # Remove any consecutive duplicate vertices to prevent division by zero in dx/dt
+    diffs = outline - np.roll(outline, 1, axis=0)
+    dx = diffs[:, 1]
+    dy = diffs[:, 0]
+    dt = np.hypot(dx, dy)
+    valid = dt > 0
+    diffs = diffs[valid]
+    dt = dt[valid]
+
+    n_points = len(dt)
+    max_harmonics = n_points // 2
+
+    if n_harmonics > max_harmonics:
+        n_harmonics = max_harmonics
+        warnings.warn(
+            f"'n_harmonics' must be at most half the number of points ({n_points}); "
+            f"it has been set to {n_harmonics}.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    if n_harmonics < 1:
+        return np.array([], dtype=float)
 
     tp = np.cumsum(dt)
-    tp_1 = np.append(0, tp[0:n_points - 1])
-    perim_T = np.sum(dt)
+    tp_prev = np.concatenate(([0.0], tp[:-1]))
+    perim_T = tp[-1]
 
-    an = []
-    bn = []
-    cn = []
-    dn = []
-    for harmonic in range(n_harmonics):
-        Ti = (perim_T / (2 * np.square(np.pi) * np.square(harmonic + 1)))
-        numerator = 2 * (harmonic + 1) * np.pi
-        an_i = Ti * np.sum((dx / dt) * (np.cos((numerator * tp) / perim_T) - np.cos((numerator * tp_1) / perim_T)))
-        bn_i = Ti * np.sum((dx / dt) * (np.sin((numerator * tp) / perim_T) - np.sin((numerator * tp_1) / perim_T)))
-        cn_i = Ti * np.sum((dy / dt) * (np.cos((numerator * tp) / perim_T) - np.cos((numerator * tp_1) / perim_T)))
-        dn_i = Ti * np.sum((dy / dt) * (np.sin((numerator * tp) / perim_T) - np.sin((numerator * tp_1) / perim_T)))
-        an = np.append(an, an_i)
-        bn = np.append(bn, bn_i)
-        cn = np.append(cn, cn_i)
-        dn = np.append(dn, dn_i)
-    return np.append(np.append(np.append(an, bn), cn), dn)
+    # Vectorize across all harmonics k = 1 .. n_harmonics -> shape (n_harmonics, 1)
+    k = np.arange(1, n_harmonics + 1)[:, None]
+
+    Ti = perim_T / (2.0 * (np.pi ** 2) * (k ** 2))
+    two_pi_k_over_T = (2.0 * np.pi * k) / perim_T
+
+    cos_diff = np.cos(two_pi_k_over_T * tp) - np.cos(two_pi_k_over_T * tp_prev)
+    sin_diff = np.sin(two_pi_k_over_T * tp) - np.sin(two_pi_k_over_T * tp_prev)
+
+    an = (Ti.T * np.sum((dx / dt) * cos_diff, axis = 1)).ravel()
+    bn = (Ti.T * np.sum((dx / dt) * sin_diff, axis = 1)).ravel()
+    cn = (Ti.T * np.sum((dy / dt) * cos_diff, axis = 1)).ravel()
+    dn = (Ti.T * np.sum((dy / dt) * sin_diff, axis = 1)).ravel()
+
+    return (an, bn, cn, dn)
 
 
 # an = np.array([-0.39940845, -0.01980334,  0.01333016, -0.02224391,  0.00092468, -0.00246493, -0.00256757])

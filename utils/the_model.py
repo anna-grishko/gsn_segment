@@ -37,7 +37,8 @@ for folder in sup_folders:
         new_dat = new_dat[1:(coordinates.shape[0] - 2), :]  # remove first and last points (duplicities)
         outline = np.concatenate((coordinates, new_dat), axis=0)
         print('filename ' + specimen)
-        coefs = ef_coefs(outline, n_harmonics=7)
+        an, bn, cn, dn = ef_coefs(outline, n_harmonics=7)
+        coefs = np.concatenate([an, bn, cn, dn])
 
         df = pd.DataFrame(data=coefs).T
         df['collection'] = folder
