@@ -25,8 +25,8 @@ def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
     
     Returns
     -------
-    np.ndarray
-        1D array of EF coefficients appended in this order: [A_1..A_n, B_1..B_n, C_1..C_n, D_1..D_n].
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        Tuple of 1D arrays (an, bn, cn, dn), each of length n_harmonics.
     """
     outline = np.asarray(outline, dtype=float)
 
@@ -35,28 +35,36 @@ def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
         outline = outline[:-1]
 
     # Remove any consecutive duplicate vertices to prevent division by zero in dx/dt
-    diffs = outline - np.roll(outline, 1, axis=0)
-    dx = diffs[:, 1]
-    dy = diffs[:, 0]
-    dt = np.hypot(dx, dy)
+    diffs = np.roll(outline, -1, axis=0) - outline
+    dt = np.hypot(diffs[:, 1], diffs[:, 0])
     valid = dt > 0
     diffs = diffs[valid]
     dt = dt[valid]
+    dx = diffs[:, 1]
+    dy = diffs[:, 0]
 
     n_points = len(dt)
     max_harmonics = n_points // 2
 
+    
     if n_harmonics > max_harmonics:
         n_harmonics = max_harmonics
         warnings.warn(
-            f"'n_harmonics' must be at most half the number of points ({n_points}); "
+            f"'n_harmonics' must be at most half the number of unique points ({n_points}); "
             f"it has been set to {n_harmonics}.",
             UserWarning,
             stacklevel=2,
         )
 
     if n_harmonics < 1:
-        return np.array([], dtype=float)
+        warnings.warn(
+                    f"'n_harmonics' should be >=1; empty arrays returned.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        empty = np.array([], dtype=float)
+        return (empty, empty.copy(), empty.copy(), empty.copy())
+    
 
     tp = np.cumsum(dt)
     tp_prev = np.concatenate(([0.0], tp[:-1]))
