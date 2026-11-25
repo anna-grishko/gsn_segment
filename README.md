@@ -1,6 +1,7 @@
 # gsn_segment
 
-is a project to predict biological sex from the greater sciatic notch (GSN) from 2D images.
+is a project to predict biological sex from the greater sciatic notch (GSN) shape from 2D images. The GSN shape is represented with elliptic Fourier coefficients. The predictor is an SVM (support vector machines) model trained on 391 samples from 4 populations: North America (USA and Mexico), Europe (Switzerland), and Asia (Thailand).
+Corresponding research paper: [https://doi.org/10.1007/s00414-026-04075-7](https://link.springer.com/article/10.1007/s00414-026-04075-7).
 
 ## Installation
 
