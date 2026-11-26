@@ -76,7 +76,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
 
     # img3 - the registered curve
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    plot_registered_curve(res, img_new.img.shape, ax)
+    plot_registered_curve(res, ax)
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.png'),
                 bbox_inches='tight')
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_registered.svg'),
@@ -98,7 +98,7 @@ def process_image_and_predict(file_path, scaler, classifier, base_output_folder)
     ### plot first two PCs of the original data with confidence ellipses, current datapoint and
     # shapes corresponding to the 0.01 and 0.99 quantiles of the first two PCs
     fig = plt.figure(figsize=(15, 10), layout="constrained")
-    plot_data(fig, ef_coefs=coefs, colors=colors, sample_name=img_name, random_state=random_state)
+    plot_data(fig, sample_ef_coefs=coefs, colors=colors, sample_name=img_name, random_state=random_state)
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.png'),
                 bbox_inches='tight')
     plt.savefig(os.path.join(TEMP_FOLDER, img_name + '_comparison.svg'),

@@ -31,8 +31,8 @@ def test_ef_coefs_unit_circle():
     np.testing.assert_allclose(dn[1:], 0.0, atol=1e-5)
 
 
-def test_ef_coefs_ellipse_axes():
-    """For an axis-aligned ellipse with semi-axes rx=5, ry=2, A_1=5 and D_1=2."""
+def test_ef_coefs_ellipse():
+    """For an axis-aligned ellipse with semi-axes rx=5, ry=2, A_1=4.455 and D_1=2.178"""
     theta = np.linspace(0, 2 * np.pi, 1000, endpoint=False)
     rx, ry = 5.0, 2.0
     outline = np.column_stack((ry * np.sin(theta), rx * np.cos(theta)))
@@ -57,6 +57,33 @@ def test_ef_coefs_ellipse_axes():
     # Reconstructing at t=0 (sum of an) and t=T/4 (D1 - D3 + D5 - D7...) recovers rx and ry
     assert np.isclose(np.sum(an), rx, atol=1e-3)
     assert np.isclose(np.sum(dn[0::4])-np.sum(dn[2::4]), ry, atol=1e-3)
+
+
+def test_ef_coefs_rotated_ellipse():
+    """A 45-degree rotated ellipse exercises non-zero an, bn, cn, and dn together."""
+    n_points = 300
+    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+    rx, ry = 4.0, 1.5
+    phi = np.pi / 4  # 45 degrees
+
+    x = rx * np.cos(theta) * np.cos(phi) - ry * np.sin(theta) * np.sin(phi)
+    y = rx * np.cos(theta) * np.sin(phi) + ry * np.sin(theta) * np.cos(phi)
+    rotated = np.column_stack((y, x))
+
+    an, bn, cn, dn, a0, c0 = ef_coefs(rotated, n_harmonics=15)
+    assert not np.allclose(an, 0.0, atol=1e-2)
+    assert not np.allclose(bn, 0.0, atol=1e-2)
+    assert not np.allclose(cn, 0.0, atol=1e-2)
+    assert not np.allclose(dn, 0.0, atol=1e-2)
+    assert np.isclose(a0, 0.0, atol=1e-6)
+    assert np.isclose(c0, 0.0, atol=1e-6)
+
+    # Harmonic power A_k^2 + B_k^2 + C_k^2 + D_k^2 is invariant to rotation
+    unrotated = np.column_stack((ry * np.sin(theta), rx * np.cos(theta)))
+    an0, bn0, cn0, dn0, _, _ = ef_coefs(unrotated, n_harmonics=15)
+    power_rot = an**2 + bn**2 + cn**2 + dn**2
+    power_unrot = an0**2 + bn0**2 + cn0**2 + dn0**2
+    np.testing.assert_allclose(power_rot, power_unrot, atol=1e-4)
 
 
 def test_ef_coefs_translation_invariance():
@@ -165,7 +192,7 @@ def test_iefourier_reconstruct_ellipse():
     theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
     cy, cx = 45.0, 120.0
 
-    # 2. Shifted ellipse: accurate reconstruction with 15 harmonics
+    # Shifted ellipse: accurate reconstruction with 15 harmonics
     ellipse = np.column_stack((2.0 * np.sin(theta) + cy, 5.0 * np.cos(theta) + cx))
     an, bn, cn, dn, a0, c0 = ef_coefs(ellipse, n_harmonics=15)
     rec_ellipse = iefourier(an, bn, cn, dn, n_points=n_points, a0=a0, c0=c0)
@@ -185,24 +212,47 @@ def test_iefourier_warns():
     cn = np.array([0.0, 0.0])
     dn = np.array([1.0, 0.0])
 
-    """Requesting more harmonics than provided in an..dn warns and uses all available harmonics."""
+    # Requesting more harmonics than provided in an..dn warns and uses all available harmonics.
     with pytest.warns(UserWarning, match="Requested n_harmonics=5 exceeds available coefficients \\(2\\); using n_harmonics=2."):
         rec = iefourier(an, bn, cn, dn, n_harmonics=5, n_points=50)
 
     assert rec.shape == (50, 2)
 
-    """Requesting more zero harmonics warns and returns centroid coordinates."""
+    # Requesting more zero harmonics warns and returns centroid coordinates.
     with pytest.warns(UserWarning, match="Requested n_harmonics=0 is less  than 1; returning centroid coordinates."):
-        rec = iefourier(an, bn, cn, dn, n_harmonics=0, n_points=50)
+        rec = iefourier(an, bn, cn, dn, n_harmonics=0, n_points=50, a0=3.5, c0=12.5)
 
     assert rec.shape == (50, 2)
+    np.testing.assert_allclose(rec, np.tile([12.5, 3.5], (50, 1)))
 
-    """Supplying empty coefficients warns and returns centroid coordinates."""
+
+    # Supplying empty coefficients warns and returns centroid coordinates.
     an = np.array([])
     bn = np.array([])
     cn = np.array([])
     dn = np.array([])
-    with pytest.warns(UserWarning, match="Empty coefficients; returning centroid coordinates"):
+    with pytest.warns(UserWarning, match="Empty coefficients; returning centroid coordinates."):
         rec = iefourier(an, bn, cn, dn, n_harmonics=5, n_points=50)
     
     assert rec.shape == (50, 2)
+
+
+def test_iefourier_rotated_ellipse():
+    """A 45-degree rotated ellipse exercises non-zero an, bn, cn, and dn together."""
+    n_points = 300
+    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+    rx, ry = 4.0, 1.5
+    phi = np.pi / 4  # 45 degrees
+
+    x = rx * np.cos(theta) * np.cos(phi) - ry * np.sin(theta) * np.sin(phi)
+    y = rx * np.cos(theta) * np.sin(phi) + ry * np.sin(theta) * np.cos(phi)
+    rotated = np.column_stack((y, x))
+
+    an, bn, cn, dn, a0, c0 = ef_coefs(rotated, n_harmonics=15)
+    rec = iefourier(an, bn, cn, dn, n_points=n_points, a0=a0, c0=c0)
+    # Rotate by phi angle
+    diag_major = (rec[:, 1] + rec[:, 0]) / np.sqrt(2)  # (x*cosphi+y*sinphi)
+    diag_minor = (-rec[:, 1] + rec[:, 0]) / np.sqrt(2)  # (-x*sinphi+y*cosphi)
+    # Check major/minor extents along the 45-degree diagonals
+    assert np.isclose(diag_major.max(), rx, atol=1e-2)
+    assert np.isclose(diag_minor.max(), ry, atol=1e-2)
