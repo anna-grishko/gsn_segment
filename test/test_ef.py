@@ -72,7 +72,7 @@ def test_ef_coefs_translation_invariance():
 
     assert np.isclose(a0_2, shift_x, atol=1e-12)
     assert np.isclose(c0_2, shift_y, atol=1e-12)
-    np.testing.assert_array_almost_equal((an1, bn1, cn1, dn1), (an2, bn2, cn2, dn2))
+    np.testing.assert_allclose((an1, bn1, cn1, dn1), (an2, bn2, cn2, dn2), atol=1e-12)
 
 
 def test_ef_coefs_preclosed_and_duplicate_vertices():
@@ -87,8 +87,8 @@ def test_ef_coefs_preclosed_and_duplicate_vertices():
         coefs_clean = ef_coefs(outline, n_harmonics=5)
         coefs_dirty = ef_coefs(closed_with_dups, n_harmonics=5)
 
-    np.testing.assert_array_almost_equal(coefs_clean[:4], coefs_dirty[:4])
-    np.testing.assert_array_almost_equal(coefs_clean[4:], coefs_dirty[4:])
+    np.testing.assert_allclose(coefs_clean[:4], coefs_dirty[:4], atol=1e-12)
+    np.testing.assert_allclose(coefs_clean[4:], coefs_dirty[4:], atol=1e-12)
 
 
 def test_ef_coefs_nyquist_warning_and_clamping():
@@ -156,7 +156,7 @@ def test_iefourier_reconstruct_circle():
     cn = np.array([0.0])
     dn = np.array([1.0])
     rec_circle = iefourier(an, bn, cn, dn, n_harmonics=1, n_points=n_points, a0=cx, c0=cy)
-    np.testing.assert_allclose(rec_circle, circle)
+    np.testing.assert_allclose(rec_circle, circle, atol=1e-12)
 
 
 def test_iefourier_reconstruct_ellipse():
