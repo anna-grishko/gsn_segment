@@ -1,20 +1,12 @@
 import warnings
 import numpy as np
 
-# folder = os.path.join('..', 'data', 'segmented_curves', 'final', 'Maxwell')
-# os.listdir(folder)
-# file_idx = 1  # take the first one
-# file_path = os.path.join(folder, os.listdir(folder)[file_idx], 'gsn_curve_registered.csv')
-# coordinates = pd.read_csv(file_path, header=None)
-# coordinates = coordinates.rename(columns={0: "y", 1: "x"})
-# # close the outline
-# new_dat = pd.DataFrame(np.array([np.zeros(coordinates.shape[0]), coordinates.loc[:, "x"]]).T, columns=['y', 'x'])
-# outline = pd.concat([coordinates, new_dat], axis=0, ignore_index=True)
 
-
-def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
+def ef_coefs(
+        outline: np.ndarray, n_harmonics: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, float]:
     """
-    Calculate Elliptic Fourier coefficients for n harmonics for a given closed outline.
+    Calculate Elliptic Fourier coefficients for n harmonics and offset (centroid) for a given closed outline.
 
     Parameters
     ----------
@@ -25,8 +17,9 @@ def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
     
     Returns
     -------
-    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-        Tuple of 1D arrays (an, bn, cn, dn), each of length n_harmonics.
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        Tuple (an, bn, cn, dn, a0, c0), where an..dn are 1D arrays of length n_harmonics,
+        and (a0, c0) is the (x, y) arc-length centroid of the contour.
     """
     outline = np.asarray(outline, dtype=float)
 
@@ -34,19 +27,42 @@ def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
     if len(outline) > 1 and np.allclose(outline[0], outline[-1]):
         outline = outline[:-1]
 
-    # Remove any consecutive duplicate vertices to prevent division by zero in dx/dt
+    # Remove any consecutive duplicate vertices to prevent division by zero in dx/dt and dy/dt
     diffs = np.roll(outline, -1, axis=0) - outline
     dt = np.hypot(diffs[:, 1], diffs[:, 0])
     valid = dt > 0
+
+    start_pts = outline[valid]
     diffs = diffs[valid]
     dt = dt[valid]
+
+    n_points = len(dt)
+    if n_points == 0:
+        warnings.warn(
+            "Outline has fewer than 2 unique points; returning empty arrays and (0.0, 0.0) offset.",
+            UserWarning,
+            stacklevel=2,
+        )
+        empty = np.array([], dtype=float)
+        return (empty, empty.copy(), empty.copy(), empty.copy(), 0.0, 0.0)
+    
+
+    x_prev = start_pts[:, 1]
+    y_prev = start_pts[:, 0]
     dx = diffs[:, 1]
     dy = diffs[:, 0]
 
-    n_points = len(dt)
-    max_harmonics = n_points // 2
+    tp = np.cumsum(dt)
+    tp_prev = np.concatenate(([0.0], tp[:-1]))
+    perim_T = tp[-1]
 
-    
+    # Kuhl & Giardina DC offset (a0 = x centroid, c0 = y centroid)
+    xi = x_prev - (dx / dt) * tp_prev
+    delta = y_prev - (dy / dt) * tp_prev
+    a0 = float(np.sum((dx / (2.0 * dt)) * (tp**2 - tp_prev**2) + xi * dt) / perim_T)
+    c0 = float(np.sum((dy / (2.0 * dt)) * (tp**2 - tp_prev**2) + delta * dt) / perim_T)
+
+    max_harmonics = n_points // 2
     if n_harmonics > max_harmonics:
         n_harmonics = max_harmonics
         warnings.warn(
@@ -58,17 +74,13 @@ def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
 
     if n_harmonics < 1:
         warnings.warn(
-                    f"'n_harmonics' should be >=1; empty arrays returned.",
+                    f"'n_harmonics' should be >=1; returns empty arrays and preserves centroid.",
                     UserWarning,
                     stacklevel=2,
                 )
         empty = np.array([], dtype=float)
-        return (empty, empty.copy(), empty.copy(), empty.copy())
-    
+        return (empty, empty.copy(), empty.copy(), empty.copy(), a0, c0)
 
-    tp = np.cumsum(dt)
-    tp_prev = np.concatenate(([0.0], tp[:-1]))
-    perim_T = tp[-1]
 
     # Vectorize across all harmonics k = 1 .. n_harmonics -> shape (n_harmonics, 1)
     k = np.arange(1, n_harmonics + 1)[:, None]
@@ -84,59 +96,78 @@ def ef_coefs(outline: np.ndarray, n_harmonics: int) -> np.ndarray:
     cn = (Ti.T * np.sum((dy / dt) * cos_diff, axis = 1)).ravel()
     dn = (Ti.T * np.sum((dy / dt) * sin_diff, axis = 1)).ravel()
 
-    return (an, bn, cn, dn)
+    return (an, bn, cn, dn, a0, c0)
 
 
-# an = np.array([-0.39940845, -0.01980334,  0.01333016, -0.02224391,  0.00092468, -0.00246493, -0.00256757])
-# bn = np.array([-0.24224837,  0.03648185, -0.01691569,  0.00822352,  0.00667135, -0.00655407,  0.00596414])
-# cn = np.array([-0.08655806, -0.08009734, -0.02140565,  0.00487414, -0.01000876, -0.00490515, -0.00035708])
-# dn = np.array([0.28939113, -0.0316743, -0.01015062,  0.00158739, -0.00102937, 0.00123179, -0.00193434])
-def iefourier(an, bn, cn, dn, n_harmonics, n_points=100, a0=0, c0=0):
+def iefourier(
+        an: np.ndarray, 
+        bn: np.ndarray, 
+        cn: np.ndarray, 
+        dn: np.ndarray, 
+        n_harmonics: int | None = None, 
+        n_points: int = 100, 
+        a0: float = 0.0, 
+        c0: float = 0.0
+) -> np.ndarray:
     """
-    Perform inverse elliptic Fourier transformation, e.g.
-    reconstructs a closed 2D contour from its harmonic EF coefficients.
+    Perform inverse elliptic Fourier transformation to reconstruct a closed 2D contour.
 
     Parameters
     ----------
-    an : ndarray
-        A elliptic Fourier coefficients.
-    bn : ndarray
-        B elliptic Fourier coefficients.
-    cn : ndarray
-        C elliptic Fourier coefficients.
-    dn : ndarray
-        D elliptic Fourier coefficients.
-    n_harmonics : int
-        numebr of harmonics to use to reconstruc the outline.
-    n_points : int
-        number of x,y coordinates on the reconstructed outline.
-    a0 : float
-        x coordinate of the  centroid of the configuration.
-    c0 : float
-        y coordinate of the centroid of the configuration.
+    an, bn, cn, dn : np.ndarray
+        1D arrays of Elliptic Fourier coefficients.
+    n_harmonics : int, optional
+        Numebr of harmonics to use to reconstruc the outline.
+    n_points : int, default=100
+        Number of x,y coordinates on the reconstructed outline.
+    a0, c0 : float, default=0.0
+        Centroid coordinates (x, y) of the contour.
 
     Returns
     -------
-    x : ndarray
-        x coordinates of the contour reconstruction.
-    y : ndarray
-        y coordinates of the contour reconstruction.
+    np.ndarray
+        (n_points, 2) array of reconstructed coordinates ordered as (row, col) / (y, x).
 
     """
+    an = np.asarray(an, dtype=float)
+    bn = np.asarray(bn, dtype=float)
+    cn = np.asarray(cn, dtype=float)
+    dn = np.asarray(dn, dtype=float)
 
-    theta = np.linspace(0, 2*np.pi, n_points)
-    harm_x = np.zeros(n_points)
-    harm_y = np.zeros(n_points)
-    n_harmonics = n_harmonics if an.__len__() > n_harmonics else an.__len__()
-    for harmonic in range(n_harmonics):
-        harm_x_i = an[harmonic] * np.cos((harmonic+1) * theta) + bn[harmonic] * np.sin((harmonic+1) * theta)
-        harm_y_i = cn[harmonic] * np.cos((harmonic+1) * theta) + dn[harmonic] * np.sin((harmonic+1) * theta)
-        harm_x = np.c_[harm_x, harm_x_i]
-        harm_y = np.c_[harm_y, harm_y_i]
-    x = a0/2 + np.sum(harm_x, axis=1)
-    y = c0/2 + np.sum(harm_y, axis=1)
+    max_harmonics = len(an)
+    if n_harmonics is None:
+        n_harmonics = max_harmonics
+    elif n_harmonics < 1:
+        warnings.warn(
+            f"Requested n_harmonics={n_harmonics} is less  than 1; returning centroid coordinates.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return np.column_stack((np.full(n_points, c0), np.full(n_points, a0)))
+    elif max_harmonics == 0:
+        warnings.warn(
+            f"Empty coefficients; returning centroid coordinates.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return np.column_stack((np.full(n_points, c0), np.full(n_points, a0)))
+    elif n_harmonics > max_harmonics:
+        warnings.warn(
+            f"Requested n_harmonics={n_harmonics} exceeds available coefficients ({max_harmonics}); "
+            f"using n_harmonics={max_harmonics}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        n_harmonics = max_harmonics
+    
+    theta = np.linspace(0, 2.0 * np.pi, n_points, endpoint=False)
+    k = np.arange(1, n_harmonics + 1)[:, None]
+    angles = k * theta  # shape (n_harmonics, n_points)
 
-    return {
-        "x": x,
-        "y": y
-    }
+    cos_k = np.cos(angles)
+    sin_k = np.sin(angles)
+
+    x = a0 + an[:n_harmonics] @ cos_k + bn[:n_harmonics] @ sin_k
+    y = c0 + cn[:n_harmonics] @ cos_k + dn[:n_harmonics] @ sin_k
+ 
+    return np.column_stack((y, x))

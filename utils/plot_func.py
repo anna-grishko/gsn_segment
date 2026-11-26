@@ -213,13 +213,13 @@ def plot_data(fig, ef_coefs, colors, sample_name, random_state):
     ax4 = fig.add_subplot(gs[4, 4])  # PC1 max
     ax5 = fig.add_subplot(gs[4, 1])  # PC1 min
 
-    ax4.plot(shape_PC1_max['x'], shape_PC1_max['y'], color='black')
+    ax4.plot(shape_PC1_max[:, 1], shape_PC1_max[:, 0], color='black')
     ax4.axis("off")
-    ax5.plot(shape_PC1_min['x'], shape_PC1_min['y'], color='black')
+    ax5.plot(shape_PC1_min[:, 1], shape_PC1_min[:, 0], color='black')
     ax5.axis("off")
-    ax2.plot(shape_PC2_max['x'], shape_PC2_max['y'], color='black')
+    ax2.plot(shape_PC2_max[:, 1], shape_PC2_max[:, 0], color='black')
     ax2.axis("off")
-    ax3.plot(shape_PC2_min['x'], shape_PC2_min['y'], color='black')
+    ax3.plot(shape_PC2_min[:, 1], shape_PC2_min[:, 0], color='black')
     ax3.axis("off")
 
     # plot datapoints from the training sample
