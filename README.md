@@ -5,24 +5,19 @@ Corresponding research paper: [https://doi.org/10.1007/s00414-026-04075-7](https
 
 ## Installation
 
-You should have [Python](https://www.python.org/downloads/) installed (you might consider [Conda](https://docs.conda.io/projects/conda/en/latest/index.html) distribution instead) and IDE ([Pycharm](https://www.jetbrains.com/pycharm/download/?section=windows) or [Visual Studio](https://code.visualstudio.com/Download)). From your IDE clone the project: [https://github.com/anna-grishko/gsn_segment.git](https://github.com/anna-grishko/gsn_segment.git)
+Install version control system [Git](https://git-scm.com/), package management tool [Pixi](https://pixi.prefix.dev/latest/installation/), and an IDE such as [Pycharm](https://www.jetbrains.com/pycharm/download) or [Visual Studio Code](https://code.visualstudio.com/Download)). From your IDE, clone the project: `https://github.com/anna-grishko/gsn_segment.git`.
 
-To create pdf reports the application requires [Quarto](https://quarto.org/docs/download/) installed.
-
+To generate PDF reports, [Quarto](https://quarto.org/) must also be installed.
 
 ## Environment setup
 
-Dependencies and environments are managed with [pixi](https://pixi.prefix.dev/).
-
-Install pixi once (see the [installation guide](https://pixi.prefix.dev/latest/installation/)).
-
-Then from a repository root build the default environment and install project dependencies:
+Dependencies—including the required Python interpreter—are managed automatically by `pixi`. From the repository root, build the default environment and install project dependencies by running the next command in the Terminal:
 
 ```bash
 pixi install
 ```
 
-And run the application for thr sex estimation:
+And run the application for the sex estimation:
 
 ```bash
 pixi run application
@@ -38,7 +33,7 @@ The proposed automated workflow provides a reliable, objective, and population-i
 2) Select a folder with your images of the GSN; select a folder where the results will be stored
 3) Press Start Batch Process
 4) Crop your images so the GSN is well-visible
-5) Place landmarks in the correct order: the piriformis tubercle (A) and then the base of the spina ischiadica (B).
+5) Place landmarks in the correct order: the piriformis tubercle (A) and then the base of the spina ischiadica (B)
 6) Results will be saved to the selected folder
 
 <p align="center">
