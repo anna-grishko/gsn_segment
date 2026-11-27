@@ -4,3 +4,4 @@
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+data/segmented_curves

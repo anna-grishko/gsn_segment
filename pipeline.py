@@ -7,7 +7,6 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from utils.curve_fitting_utils import sample_equidist
-from utils.ef_functions import ef_coefs
 from utils.img_preproc_utils import ImgProcessor, ContourGSN, transform_gsn
 
 folder = 'data/input_data/simon'
