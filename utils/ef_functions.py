@@ -17,7 +17,7 @@ def ef_coefs(
     
     Returns
     -------
-    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, float]
         Tuple (an, bn, cn, dn, a0, c0), where an..dn are 1D arrays of length n_harmonics,
         and (a0, c0) is the (x, y) arc-length centroid of the contour.
     """
@@ -107,7 +107,8 @@ def iefourier(
         n_harmonics: int | None = None, 
         n_points: int = 100, 
         a0: float = 0.0, 
-        c0: float = 0.0
+        c0: float = 0.0,
+        closed: bool = True
 ) -> np.ndarray:
     """
     Perform inverse elliptic Fourier transformation to reconstruct a closed 2D contour.
@@ -117,11 +118,13 @@ def iefourier(
     an, bn, cn, dn : np.ndarray
         1D arrays of Elliptic Fourier coefficients.
     n_harmonics : int, optional
-        Numebr of harmonics to use to reconstruc the outline.
+        Number of harmonics to use to reconstruct the outline.
     n_points : int, default=100
         Number of x,y coordinates on the reconstructed outline.
     a0, c0 : float, default=0.0
         Centroid coordinates (x, y) of the contour.
+    closed : bool, default=True
+
 
     Returns
     -------
@@ -139,7 +142,7 @@ def iefourier(
         n_harmonics = max_harmonics
     elif n_harmonics < 1:
         warnings.warn(
-            f"Requested n_harmonics={n_harmonics} is less  than 1; returning centroid coordinates.",
+            f"Requested n_harmonics={n_harmonics} is less than 1; returning centroid coordinates.",
             UserWarning,
             stacklevel=2,
         )
@@ -160,7 +163,7 @@ def iefourier(
         )
         n_harmonics = max_harmonics
     
-    theta = np.linspace(0, 2.0 * np.pi, n_points, endpoint=False)
+    theta = np.linspace(0, 2.0 * np.pi, n_points, endpoint=closed)
     k = np.arange(1, n_harmonics + 1)[:, None]
     angles = k * theta  # shape (n_harmonics, n_points)
 

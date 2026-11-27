@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import string
+import warnings
 from pathlib import Path
 import scipy
 import cv2
@@ -104,8 +105,6 @@ def plot_registered_curve(res, ax=None):
     ----------
     res : numpy.ndarray
         The registered curve coordinates, array of (row, col) / (y, x) arrays.
-    image_shape : tuple
-        The shape of the image.
     ax : matplotlib.axes.Axes, optional
         Axis object on which to draw the curve.
 
@@ -144,7 +143,7 @@ def shape_from_PC(PC_value: float, PC_index: int, pca_class) -> np.ndarray:
     Returns
     -------
     shape_PC : np.ndarray
-        The reconstructed shape as a dictionary of (row, col) / (y, x) coordinates.
+        The reconstructed shape as a np.ndarray of (row, col) / (y, x) coordinates.
     """
     X_PC = np.zeros((1, pca_class.n_components_))
     X_PC[0, PC_index] = PC_value
@@ -174,7 +173,7 @@ def plot_data(
     fig : matplotlib.figure.Figure
         The figure object to plot on.
     sample_ef_coefs : numpy.ndarray
-        The Elliptic Fourier coefficients of the current sample, size (28,) = 7 harmonics.
+        The Elliptic Fourier coefficients of the current sample, size (4*k,) = k harmonics.
     colors : dict
         A palette mapping 'F' and 'M' to their respective colors for plotting.
     sample_name : str
@@ -200,9 +199,53 @@ def plot_data(
     sample_ef_coefs = np.asarray(sample_ef_coefs, dtype=float).ravel()
     n_features = len(sample_ef_coefs)
 
-    # Dynamically match the number of harmonics in sample_ef_coefs (assumes col 0 is 'sex')
-    feature_cols = [col for col in ef_data.columns if col != "index"][:n_features]
-    dataset = ef_data[feature_cols]
+    # Find columns with int numbers as name, these are EF coefficients.
+    coef_cols = sorted(
+    (col for col in ef_data.columns if str(col).isascii() and str(col).isdigit()),
+    key=int
+    )
+
+    if len(coef_cols) == 0 or len(coef_cols) % 4 != 0:
+        raise ValueError(
+            f"Expected EF coefficient columns in `ef_data` to be a non-zero multiple of 4, found {len(coef_cols)}."
+        )
+    if n_features == 0 or n_features % 4 != 0:
+        raise ValueError(
+            f"Expected `sample_ef_coefs` length to be a non-zero multiple of 4, got {n_features}."
+        )
+
+    n_harmonics_data = len(coef_cols) // 4
+    n_harmonics_sample = n_features // 4
+
+    if n_harmonics_sample > n_harmonics_data:
+        warnings.warn(
+            f"`sample_ef_coefs` has {n_harmonics_sample} harmonics, which exceeds the "
+            f"{n_harmonics_data} harmonics available in `ef_data`; truncating `sample_ef_coefs` to {n_harmonics_data}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        n_harmonics = n_harmonics_data
+        sample_ef_coefs = np.concatenate(
+            [block[:n_harmonics] for block in np.split(sample_ef_coefs, 4)]
+        )
+    elif n_harmonics_sample < n_harmonics_data:
+        warnings.warn(
+            f"`ef_data` has {n_harmonics_data} harmonics, which exceeds the "
+            f"{n_harmonics_sample} harmonics in `sample_ef_coefs`; truncating `ef_data` to {n_harmonics_sample}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        n_harmonics = n_harmonics_sample
+    else:
+        n_harmonics = n_harmonics_data
+
+    selected_cols = [
+        col
+        for block in range(4)
+        for col in coef_cols[block * n_harmonics_data : block * n_harmonics_data + n_harmonics]
+    ]
+    
+    dataset = ef_data[selected_cols]
     y = ef_data["sex"]
 
     if pca is None:

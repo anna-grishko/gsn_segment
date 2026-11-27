@@ -173,7 +173,7 @@ def test_ef_coefs_invalid_n_harmonics_warning():
 def test_iefourier_reconstruct_circle():
     """Forward EFA followed by inverse EFA accurately reconstructs translated circle."""
     n_points = 300
-    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=True)
     cy, cx = 45.0, 120.0
 
     # Shifted circle: exact reconstruction with 1 harmonic
@@ -195,7 +195,7 @@ def test_iefourier_reconstruct_ellipse():
     # Shifted ellipse: accurate reconstruction with 15 harmonics
     ellipse = np.column_stack((2.0 * np.sin(theta) + cy, 5.0 * np.cos(theta) + cx))
     an, bn, cn, dn, a0, c0 = ef_coefs(ellipse, n_harmonics=15)
-    rec_ellipse = iefourier(an, bn, cn, dn, n_points=n_points, a0=a0, c0=c0)
+    rec_ellipse = iefourier(an, bn, cn, dn, n_points=n_points, a0=a0, c0=c0, closed=False)
 
     # Check bounding box and centroid match closely (theta spacing differs slightly from arc-length t)
     assert np.isclose(rec_ellipse[:, 0].min(), cy - 2.0, atol=1e-2)
@@ -219,7 +219,7 @@ def test_iefourier_warns():
     assert rec.shape == (50, 2)
 
     # Requesting more zero harmonics warns and returns centroid coordinates.
-    with pytest.warns(UserWarning, match="Requested n_harmonics=0 is less  than 1; returning centroid coordinates."):
+    with pytest.warns(UserWarning, match="Requested n_harmonics=0 is less than 1; returning centroid coordinates."):
         rec = iefourier(an, bn, cn, dn, n_harmonics=0, n_points=50, a0=3.5, c0=12.5)
 
     assert rec.shape == (50, 2)
